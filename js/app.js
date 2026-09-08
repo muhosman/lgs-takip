@@ -202,8 +202,16 @@ function startApp() {
   syncBoot();
 }
 
-function afterUnlock() {
+async function afterUnlock() {
   sessionStorage.setItem(SESSION_KEY, '1');
+
+  // Buluttaki veriyi kilidi açar açmaz indir: yeni bir cihazda isim, hedef ve
+  // kayıtlar zaten sunucuda olduğu halde "adın ne?" diye sormamak için.
+  if (sync.enabled()) {
+    $('#lockSub').textContent = 'Verilerin alınıyor… ☁️';
+    await pullAndMerge();
+  }
+
   if (!store.get().name) {
     $('#lock').classList.add('hidden');
     $('#onboard').classList.remove('hidden');
@@ -281,7 +289,10 @@ async function tryPin() {
     $('#lockSub').textContent = 'Şifre yanlış, tekrar dene 🙈';
     $('#lockSub').classList.add('err');
     if (navigator.vibrate) navigator.vibrate(120);
-    setTimeout(() => { card.classList.remove('shake'); setPin(''); }, 430);
+    // Haneleri hemen sıfırla: gecikmeli sıfırlama, hızlı tekrar yazan
+    // kullanıcının ilk hanelerini siliyordu.
+    setPin('');
+    setTimeout(() => card.classList.remove('shake'), 430);
   }
 }
 

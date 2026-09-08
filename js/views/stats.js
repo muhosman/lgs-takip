@@ -46,12 +46,25 @@ export function render() {
   const trend = last14(state.days);
   const hasData = st.totalQ > 0;
 
+  const earned = new Set(earnedBadges(st));
+
+  // Rozetler soru verisi olmasa da görünmeli: kitap rozetleri buradan kazanılıyor.
+  const badgeSection = `
+  <div class="sec-title">Rozetlerin (${earned.size}/${BADGES.length})</div>
+  <div class="badges">
+    ${BADGES.map(b => `
+      <div class="badge ${earned.has(b.id) ? '' : 'locked'}">
+        <div class="badge-ico">${earned.has(b.id) ? b.ico : '🔒'}</div>
+        <div class="badge-name">${esc(b.name)}</div>
+        <div class="badge-desc">${esc(b.desc)}</div>
+      </div>`).join('')}
+  </div>`;
+
   if (!hasData) {
     return `<div class="card"><div class="empty"><div>📊</div>
-      Henüz veri yok.<br>Bugün birkaç soru çöz, grafikler burada canlansın! 🌸</div></div>`;
+      Henüz soru kaydın yok.<br>Bugün birkaç soru çöz, grafikler burada canlansın! 🌸</div></div>
+      ${badgeSection}`;
   }
-
-  const earned = new Set(earnedBadges(st));
 
   return `
   <div class="stat-grid">
@@ -92,6 +105,17 @@ export function render() {
     </div>
   </div>
 
+  ${st.bookCount ? `
+  <div class="card">
+    <div class="card-title">📚 Kitap ilerlemen</div>
+    <div class="mini-stats" style="margin-top:0">
+      <div class="mini-stat"><b>${st.bookCount}</b>kitap</div>
+      <div class="mini-stat"><b>${st.unitsDone}/${st.unitsTotal}</b>ünite</div>
+      <div class="mini-stat"><b>${st.booksFinished}</b>bitirilen</div>
+    </div>
+    <div class="pbar" style="margin-top:11px"><div class="pfill" style="width:${st.unitsTotal ? (st.unitsDone / st.unitsTotal) * 100 : 0}%"></div></div>
+  </div>` : ''}
+
   <div class="card">
     <div class="card-title">🧑‍🏫 Ekstra</div>
     <div class="mini-stats">
@@ -102,15 +126,7 @@ export function render() {
     </div>
   </div>
 
-  <div class="sec-title">Rozetlerin (${earned.size}/${BADGES.length})</div>
-  <div class="badges">
-    ${BADGES.map(b => `
-      <div class="badge ${earned.has(b.id) ? '' : 'locked'}">
-        <div class="badge-ico">${earned.has(b.id) ? b.ico : '🔒'}</div>
-        <div class="badge-name">${esc(b.name)}</div>
-        <div class="badge-desc">${esc(b.desc)}</div>
-      </div>`).join('')}
-  </div>`;
+  ${badgeSection}`;
 }
 
 export function bind() { /* etkileşim yok */ }

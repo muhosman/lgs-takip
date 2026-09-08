@@ -392,3 +392,75 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
 .chip-sync{font-size:14px;padding:7px 9px;line-height:1}
 .chip-sync.spin{animation:spin 1.1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============ KİTAPLARIM ============ */
+.chip-gear{font-size:15px;padding:7px 10px;line-height:1;cursor:pointer;transition:.15s}
+.chip-gear:active{transform:scale(.9)}
+.chip-gear.on{background:var(--pink);border-color:var(--pink)}
+
+/* ilerleme çubuğu */
+.pbar{height:8px;border-radius:99px;background:#FFE6EF;overflow:hidden}
+.pfill{height:100%;border-radius:99px;background:linear-gradient(90deg,#FF9CC5,#F0679B);transition:width .45s cubic-bezier(.2,1,.3,1)}
+
+/* ders seçici */
+.subj-picker{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+.spick{
+  background:#FFF6FA;border:1.5px solid var(--line);border-radius:13px;
+  padding:9px 8px;font-size:12px;text-align:left;color:var(--ink-soft);transition:.14s;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.spick.on{background:var(--c);border-color:var(--c);color:var(--i)}
+.spick:active{transform:scale(.97)}
+textarea.ta{height:auto;padding:11px 13px;line-height:1.55;resize:vertical;min-height:120px}
+
+/* kitap kartı */
+.book{
+  background:var(--card);border-radius:var(--r);margin-bottom:11px;
+  box-shadow:var(--shadow-sm);border:1.5px solid var(--line);overflow:hidden;
+  border-left:5px solid var(--c);
+}
+.book.finished{background:linear-gradient(120deg,#FFFDF7,#FFF6FB)}
+.book-head{display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:pointer}
+.book-emoji{font-size:22px;flex-shrink:0}
+.book-main{flex:1;min-width:0}
+.book-name{font-family:'Baloo 2',sans-serif;font-size:15px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.book-sub{font-size:11.5px;color:var(--ink-soft);margin:2px 0 7px}
+.book-pct{font-family:'Baloo 2',sans-serif;font-size:14px;color:var(--i);flex-shrink:0}
+.book-caret{color:var(--ink-soft);font-size:13px;transition:transform .22s;flex-shrink:0}
+.book-caret.open{transform:rotate(180deg)}
+.book-body{padding:0 14px 14px;border-top:1px dashed var(--line);margin-top:2px;padding-top:11px}
+
+/* üniteler */
+ul.units{list-style:none;margin:0 0 11px;padding:0}
+.unit{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px dashed #FBE9F0}
+.unit:last-child{border-bottom:0}
+.ubox{
+  width:26px;height:26px;border-radius:9px;flex-shrink:0;
+  border:2px solid var(--pink-soft);background:#FFF8FB;color:#fff;
+  font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.15s;
+}
+.unit.done .ubox{background:var(--ok);border-color:var(--ok)}
+.ubox:active{transform:scale(.86)}
+.uname{flex:1;min-width:0;font-size:13.5px;line-height:1.35;cursor:pointer;word-break:break-word}
+.unit.done .uname{text-decoration:line-through;color:var(--ink-soft)}
+.uedit{
+  flex:1;min-width:0;height:34px;border-radius:10px;border:1.5px solid var(--pink);
+  background:#FFF8FB;padding:0 9px;font-size:13.5px;outline:none;
+}
+.uicon{
+  width:28px;height:28px;border-radius:9px;background:#FFF0F5;color:var(--pink-deep);
+  font-size:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+}
+.uicon.danger{background:#FFEDF1;color:#D64257}
+.uicon:active{transform:scale(.88)}
+
+.add-unit{display:flex;gap:8px}
+.add-unit .inp{flex:1;height:40px;font-size:13.5px}
+.add-unit .btn-ghost{flex-shrink:0;padding:11px 14px}
+
+@media (max-width:600px){
+  .subj-picker{grid-template-columns:1fr 1fr}
+  .spick{font-size:11.5px;padding:9px 7px}
+  .add-unit .inp{font-size:16px}
+  .uname{font-size:13px}
+}

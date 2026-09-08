@@ -15,6 +15,8 @@ const defaults = () => ({
   days: {},           // 'YYYY-MM-DD' -> { _t: zaman damgası, turkce:{d,y,b,s,ct}, ... }
   exams: [],          // { id, name, date, subjects:{ key:{d,y} } }
   deletedExams: [],   // silinen denemeler senkronda geri gelmesin
+  books: [],          // { id, subject, name, units:[{id,name,done,doneAt}], _t }
+  deletedBooks: [],
   seenBadges: [],
   updatedAt: 0,       // ayarların son değişme zamanı (birleştirmede kullanılır)
   createdAt: new Date().toISOString(),
@@ -103,6 +105,87 @@ export function removeExam(id) {
   save();
 }
 
+/* ---------------- kitaplar ---------------- */
+
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+const touchBook = book => {
+  book._t = Date.now();
+  state.updatedAt = Date.now();
+};
+
+export const findBook = id => state.books.find(b => b.id === id) || null;
+
+export function addBook({ subject, name, unitNames = [] }) {
+  const book = {
+    id: uid('b'),
+    subject,
+    name: String(name || '').trim().slice(0, 80) || 'Adsız kitap',
+    units: unitNames.map(n => ({ id: uid('u'), name: n, done: false, doneAt: null })),
+    _t: Date.now(),
+  };
+  state.books.push(book);
+  state.updatedAt = Date.now();
+  save();
+  return book;
+}
+
+export function removeBook(id) {
+  state.books = state.books.filter(b => b.id !== id);
+  if (!state.deletedBooks.includes(id)) state.deletedBooks.push(id);
+  state.updatedAt = Date.now();
+  save();
+}
+
+export function renameBook(id, name) {
+  const b = findBook(id);
+  if (!b) return;
+  b.name = String(name || '').trim().slice(0, 80) || b.name;
+  touchBook(b);
+  save();
+}
+
+export function addUnits(bookId, names) {
+  const b = findBook(bookId);
+  if (!b) return 0;
+  const clean = names.map(n => String(n).trim()).filter(Boolean).slice(0, 200);
+  clean.forEach(n => b.units.push({ id: uid('u'), name: n.slice(0, 120), done: false, doneAt: null }));
+  touchBook(b);
+  save();
+  return clean.length;
+}
+
+export function renameUnit(bookId, unitId, name) {
+  const b = findBook(bookId);
+  const u = b && b.units.find(x => x.id === unitId);
+  if (!u) return;
+  u.name = String(name || '').trim().slice(0, 120) || u.name;
+  touchBook(b);
+  save();
+}
+
+export function removeUnit(bookId, unitId) {
+  const b = findBook(bookId);
+  if (!b) return;
+  b.units = b.units.filter(u => u.id !== unitId);
+  touchBook(b);
+  save();
+}
+
+/** Üniteyi işaretler/kaldırır ve kitabın yeni tamamlanma durumunu döner. */
+export function toggleUnit(bookId, unitId) {
+  const b = findBook(bookId);
+  const u = b && b.units.find(x => x.id === unitId);
+  if (!u) return null;
+  u.done = !u.done;
+  u.doneAt = u.done ? new Date().toISOString() : null;
+  touchBook(b);
+  save();
+  const total = b.units.length;
+  const done = b.units.filter(x => x.done).length;
+  return { done, total, justFinished: total > 0 && done === total && u.done };
+}
+
 export function markBadgesSeen(ids) {
   const set = new Set(state.seenBadges);
   ids.forEach(i => set.add(i));
@@ -155,6 +238,16 @@ export function mergeDocs(a, b) {
     .filter(e => !deleted.has(e.id))
     .sort((x, y) => x.date.localeCompare(y.date));
   out.deletedExams = [...deleted];
+
+  const deletedB = new Set([...(a.deletedBooks || []), ...(b.deletedBooks || [])]);
+  const books = new Map();
+  for (const bk of [...(a.books || []), ...(b.books || [])]) {
+    const cur = books.get(bk.id);
+    // aynı kitap iki cihazda da değişmişse daha yeni zaman damgası kazanır
+    if (!cur || (bk._t || 0) >= (cur._t || 0)) books.set(bk.id, bk);
+  }
+  out.books = [...books.values()].filter(bk => !deletedB.has(bk.id));
+  out.deletedBooks = [...deletedB];
 
   out.seenBadges = [...new Set([...(a.seenBadges || []), ...(b.seenBadges || [])])];
   out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);

@@ -8,11 +8,12 @@ import { confetti } from './confetti.js';
 
 import * as today from './views/today.js';
 import * as week from './views/week.js';
+import * as books from './views/books.js';
 import * as stats from './views/stats.js';
 import * as exams from './views/exams.js';
 import * as settings from './views/settings.js';
 
-const VIEWS = { today, week, stats, exams, settings };
+const VIEWS = { today, week, books, stats, exams, settings };
 const SESSION_KEY = 'lgs-unlocked';
 
 const WELCOME_QUOTES = [
@@ -189,6 +190,8 @@ function renderTab(tab) {
   window.scrollTo(0, 0);
   document.querySelectorAll('#tabbar button').forEach(b =>
     b.classList.toggle('on', b.dataset.tab === tab));
+  // Ayarlar alt menüde değil, üstteki dişli düğmesinde
+  $('#gearBtn').classList.toggle('on', tab === 'settings');
 }
 
 function startApp() {
@@ -334,6 +337,8 @@ function init() {
   initOnboard();
   initSyncIndicator();
   initSyncWatchers();
+
+  $('#gearBtn').addEventListener('click', () => renderTab('settings'));
 
   $('#tabbar').addEventListener('click', e => {
     const b = e.target.closest('button[data-tab]');

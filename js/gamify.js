@@ -75,8 +75,18 @@ export function summarize(state) {
     }
   }
 
+  const books = state.books || [];
+  let unitsTotal = 0, unitsDone = 0, booksFinished = 0;
+  for (const b of books) {
+    const done = (b.units || []).filter(u => u.done).length;
+    unitsTotal += (b.units || []).length;
+    unitsDone += done;
+    if ((b.units || []).length > 0 && done === b.units.length) booksFinished++;
+  }
+
   const stats = {
     totalQ, totalD, totalY, totalB, totalAsk, totalTaught,
+    bookCount: books.length, unitsTotal, unitsDone, booksFinished,
     activeDays, bestDay, bestAccuracy, goalDays, allSixDay,
     perSubject: per,
     examCount: state.exams.length,

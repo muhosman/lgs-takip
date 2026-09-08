@@ -46,6 +46,10 @@ export const BADGES = [
   { id:'mat500',     ico:'📐', name:'Matematikçi',     desc:'Matematikte 500 soru',  test:s => (s.perSubject.matematik||0) >= 500 },
   { id:'tumders',    ico:'🌈', name:'Her Şeyden Biraz',desc:'Bir günde 6 dersi de çalış', test:s => s.allSixDay },
   { id:'maraton',    ico:'🦾', name:'Maratoncu',       desc:'Bir günde 150 soru',    test:s => s.bestDay >= 150 },
+  { id:'kitap1',     ico:'📕', name:'İlk Kitap',       desc:'İlk kitabını ekle',     test:s => s.bookCount >= 1 },
+  { id:'kitapbitti', ico:'🎓', name:'Kapak Attım',     desc:'Bir kitabı bitir',      test:s => s.booksFinished >= 1 },
+  { id:'unite50',    ico:'✔️', name:'Üniteci',         desc:'50 üniteyi tamamla',    test:s => s.unitsDone >= 50 },
+  { id:'kutuphane',  ico:'📚', name:'Kütüphaneci',     desc:'5 kitap ekle',          test:s => s.bookCount >= 5 },
 ];
 
 export const MOTIVATION = [

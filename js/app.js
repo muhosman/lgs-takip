@@ -69,7 +69,7 @@ function greetingText(name) {
 function refreshHeader() {
   const state = store.get();
   const st = summarize(state);
-  const lvl = levelInfo(st.totalQ);
+  const lvl = levelInfo(st.xp);
   const now = new Date();
 
   $('#greeting').textContent = greetingText(state.name);

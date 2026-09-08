@@ -11,14 +11,18 @@ export const SUBJECTS = [
 
 export const SUBJ_MAP = Object.fromEntries(SUBJECTS.map(s => [s.key, s]));
 
-// Girilen metrikler (cozulen = d+y+b, otomatik hesaplanır)
+// Girilen metrikler. Toplam soru = doğru + yanlış + boş + çözdürdüğüm
 export const METRICS = [
   { key:'d',  label:'Doğru',       emoji:'✅', short:'Doğru' },
   { key:'y',  label:'Yanlış',      emoji:'❌', short:'Yanlış' },
   { key:'b',  label:'Boş',         emoji:'⚪', short:'Boş' },
-  { key:'s',  label:'Sorulacak',   emoji:'❓', short:'Sorulacak' },
   { key:'ct', label:'Çözdürdüğüm', emoji:'🧑‍🏫', short:'Çözdürdüğüm' },
 ];
+
+// Çözdürülen soru da bir sorudur ve ekstra puan kazandırır:
+// kendi çözdüğü 1 XP, çözdürdüğü 2 XP.
+export const XP_PER_OWN = 1;
+export const XP_PER_TAUGHT = 2;
 
 export const LEVEL_TITLES = [
   'Yeni Başlayan','Kalem Dostu','Defter Kurdu','Soru Avcısı','Net Ustası',
@@ -50,6 +54,7 @@ export const BADGES = [
   { id:'kitapbitti', ico:'🎓', name:'Kapak Attım',     desc:'Bir kitabı bitir',      test:s => s.booksFinished >= 1 },
   { id:'unite50',    ico:'✔️', name:'Üniteci',         desc:'50 üniteyi tamamla',    test:s => s.unitsDone >= 50 },
   { id:'kutuphane',  ico:'📚', name:'Kütüphaneci',     desc:'5 kitap ekle',          test:s => s.bookCount >= 5 },
+  { id:'sorduran',   ico:'🧑‍🏫', name:'Sormaktan Korkmaz', desc:'100 soru çözdür',     test:s => s.totalTaught >= 100 },
 ];
 
 export const MOTIVATION = [

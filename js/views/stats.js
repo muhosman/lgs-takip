@@ -23,7 +23,7 @@ function subjectNets(days) {
       if (!r) continue;
       acc[s.key].d += r.d || 0;
       acc[s.key].y += r.y || 0;
-      acc[s.key].q += (r.d || 0) + (r.y || 0) + (r.b || 0);
+      acc[s.key].q += (r.d || 0) + (r.y || 0) + (r.b || 0) + (r.ct || 0);
     }
   }
   return acc;
@@ -119,11 +119,15 @@ export function render() {
   <div class="card">
     <div class="card-title">🧑‍🏫 Ekstra</div>
     <div class="mini-stats">
-      <div class="mini-stat"><b>${st.totalAsk}</b>sorulacak soru</div>
-      <div class="mini-stat"><b>${st.totalTaught}</b>çözdürdüğüm soru</div>
+      <div class="mini-stat"><b>${st.totalOwn}</b>kendi çözdüğü</div>
+      <div class="mini-stat"><b>${st.totalTaught}</b>çözdürdüğü</div>
+      <div class="mini-stat"><b>${st.xp}</b>toplam puan</div>
       <div class="mini-stat"><b>${st.bestDay}</b>en yoğun gün</div>
       <div class="mini-stat"><b>${st.goalDays}</b>hedef tutturulan gün</div>
     </div>
+    <p class="hint" style="text-align:left;margin:10px 0 0">
+      Çözdürdüğün her soru hem soru sayına eklenir hem de iki kat puan kazandırır 🧑‍🏫
+    </p>
   </div>
 
   ${badgeSection}`;

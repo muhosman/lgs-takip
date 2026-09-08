@@ -1,18 +1,26 @@
 // XP, seviye, seri ve rozet hesapları
-import { SUBJECTS, LEVEL_TITLES, BADGES, xpForLevel } from './data.js';
+import { SUBJECTS, LEVEL_TITLES, BADGES, xpForLevel, XP_PER_OWN, XP_PER_TAUGHT } from './data.js';
 import { keyOf, dateOf, addDays, todayKey, netOf } from './utils.js';
 
-/** Bir günün toplamları */
+/**
+ * Bir günün toplamları.
+ *  own = kendi çözdüğü (doğru + yanlış + boş)
+ *  ct  = çözdürdüğü
+ *  q   = toplam soru (own + ct)
+ *  xp  = kazanılan puan (çözdürdüğü ekstra puan getirir)
+ */
 export function dayTotals(day) {
-  const t = { d:0, y:0, b:0, s:0, ct:0, q:0, net:0, subjects:0 };
+  const t = { d:0, y:0, b:0, ct:0, own:0, q:0, xp:0, net:0, subjects:0 };
   if (!day) return t;
   for (const s of SUBJECTS) {
     const r = day[s.key];
     if (!r) continue;
-    const q = (r.d||0) + (r.y||0) + (r.b||0);
-    if (q > 0 || r.s || r.ct) t.subjects++;
+    const own = (r.d||0) + (r.y||0) + (r.b||0);
+    const ct = r.ct||0;
+    if (own > 0 || ct > 0) t.subjects++;
     t.d += r.d||0; t.y += r.y||0; t.b += r.b||0;
-    t.s += r.s||0; t.ct += r.ct||0; t.q += q;
+    t.ct += ct; t.own += own; t.q += own + ct;
+    t.xp += own * XP_PER_OWN + ct * XP_PER_TAUGHT;
     t.net += netOf(r.d, r.y);
   }
   return t;
@@ -53,17 +61,18 @@ export function bestStreak(days) {
 /** Tüm zamanların özeti — rozet testleri ve istatistik ekranı bunu kullanır */
 export function summarize(state) {
   const days = state.days;
-  const per = {}; let totalQ = 0, totalD = 0, totalY = 0, totalB = 0, totalAsk = 0, totalTaught = 0;
+  const per = {};
+  let totalQ = 0, totalOwn = 0, totalD = 0, totalY = 0, totalB = 0, totalTaught = 0, totalXp = 0;
   let bestDay = 0, bestAccuracy = 0, goalDays = 0, allSixDay = false, activeDays = 0;
 
   for (const key of Object.keys(days)) {
     const t = dayTotals(days[key]);
     if (t.q > 0) activeDays++;
-    totalQ += t.q; totalD += t.d; totalY += t.y; totalB += t.b;
-    totalAsk += t.s; totalTaught += t.ct;
+    totalQ += t.q; totalOwn += t.own; totalD += t.d; totalY += t.y; totalB += t.b;
+    totalTaught += t.ct; totalXp += t.xp;
     if (t.q > bestDay) bestDay = t.q;
-    if (t.q >= 20) {
-      const acc = (t.d / t.q) * 100;
+    if (t.own >= 20) {
+      const acc = (t.d / t.own) * 100;
       if (acc > bestAccuracy) bestAccuracy = acc;
     }
     if (t.q >= state.dailyGoal && state.dailyGoal > 0) goalDays++;
@@ -71,7 +80,7 @@ export function summarize(state) {
     for (const s of SUBJECTS) {
       const r = days[key][s.key];
       if (!r) continue;
-      per[s.key] = (per[s.key] || 0) + (r.d||0) + (r.y||0) + (r.b||0);
+      per[s.key] = (per[s.key] || 0) + (r.d||0) + (r.y||0) + (r.b||0) + (r.ct||0);
     }
   }
 
@@ -85,14 +94,14 @@ export function summarize(state) {
   }
 
   const stats = {
-    totalQ, totalD, totalY, totalB, totalAsk, totalTaught,
+    totalQ, totalOwn, totalD, totalY, totalB, totalTaught, xp: totalXp,
     bookCount: books.length, unitsTotal, unitsDone, booksFinished,
     activeDays, bestDay, bestAccuracy, goalDays, allSixDay,
     perSubject: per,
     examCount: state.exams.length,
     streak: currentStreak(days),
     bestStreak: bestStreak(days),
-    accuracy: totalD + totalY + totalB > 0 ? (totalD / (totalD + totalY + totalB)) * 100 : 0,
+    accuracy: totalOwn > 0 ? (totalD / totalOwn) * 100 : 0,
     avgPerActiveDay: activeDays ? totalQ / activeDays : 0,
   };
   return stats;

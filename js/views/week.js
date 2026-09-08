@@ -9,13 +9,13 @@ import {
 let anchor = weekStart(new Date()); // görüntülenen hafta
 
 const ROWS = [
-  { key:'q',  label:'✏️ Çözülen Soru', auto:true },
+  { key:'q',  label:'✏️ Toplam Soru', auto:true },   // doğru + yanlış + boş + çözdürdüğüm
   ...METRICS.map(m => ({ key:m.key, label:`${m.emoji} ${m.label}`, auto:false })),
 ];
 
 function cellValue(key, subject, row) {
   const r = store.recOf(key, subject);
-  return row.auto ? r.d + r.y + r.b : r[row.key];
+  return row.auto ? r.d + r.y + r.b + r.ct : r[row.key];
 }
 
 export function render() {
@@ -70,7 +70,7 @@ export function render() {
   <div class="btn-row" style="margin-top:11px">
     <button type="button" class="btn-ghost" data-w="today">📍 Bu haftaya dön</button>
   </div>
-  <p class="hint">Hücrelere dokunup yazabilirsin · "Çözülen Soru" otomatik hesaplanır (doğru + yanlış + boş)</p>`;
+  <p class="hint">Hücrelere dokunup yazabilirsin · "Toplam Soru" otomatik hesaplanır (doğru + yanlış + boş + çözdürdüğüm)</p>`;
 }
 
 export function bind(root, ctx) {
@@ -84,11 +84,11 @@ export function bind(root, ctx) {
       tdTotal.textContent = sum || '';
     }
     // çözülen satırı (otomatik) ve toplamı
-    if (['d', 'y', 'b'].includes(metricKey)) {
+    if (['d', 'y', 'b', 'ct'].includes(metricKey)) {
       let qSum = 0;
       for (const k of days) {
         const r = store.recOf(k, subject);
-        const q = r.d + r.y + r.b;
+        const q = r.d + r.y + r.b + r.ct;
         qSum += q;
         const cell = root.querySelector(`[data-auto="${subject}|${k}"]`);
         if (cell) cell.textContent = q || '';

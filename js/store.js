@@ -4,7 +4,7 @@ import { clampInt } from './utils.js';
 
 const KEY = 'lgs-takip-v1';
 
-const emptyRec = () => ({ d:0, y:0, b:0, s:0, ct:0 });
+const emptyRec = () => ({ d:0, y:0, b:0, ct:0 });
 
 const defaults = () => ({
   version: 1,
@@ -34,6 +34,7 @@ export function load() {
     console.warn('Kayıt okunamadı, sıfırdan başlanıyor', e);
     state = defaults();
   }
+  dropRetiredFields();
   sweepTombstones();
   return state;
 }
@@ -92,6 +93,17 @@ function pruneDay(key) {
   // Gün tamamen boşalsa bile kaydı SİLMİYORUZ; geriye zaman damgası kalıyor.
   // Silseydik diğer cihaz "bu günü hiç bilmiyor" sanıp kendi eski kaydını
   // korurdu ve sıfırlama hiçbir zaman yayılmazdı.
+}
+
+/** Kaldırılan "sorulacak" alanını eski kayıtlardan temizler */
+function dropRetiredFields() {
+  for (const k of Object.keys(state.days)) {
+    const day = state.days[k];
+    for (const sk of Object.keys(day)) {
+      if (sk === '_t') continue;
+      if (day[sk] && 's' in day[sk]) delete day[sk].s;
+    }
+  }
 }
 
 /** Uzun süredir boş duran gün kayıtlarını temizler (senkron penceresinin çok ötesi) */

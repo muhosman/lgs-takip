@@ -150,7 +150,7 @@ input,select{font-family:inherit;font-weight:700;color:inherit}
 .subj-net{background:rgba(255,255,255,.82);border-radius:12px;padding:4px 10px;font-size:12px;white-space:nowrap}
 .subj-net b{font-family:'Baloo 2',sans-serif;font-size:14px}
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.steps.extra{grid-template-columns:repeat(2,1fr);margin-top:8px}
+.steps.extra{grid-template-columns:1fr;margin-top:8px}
 .step{background:rgba(255,255,255,.85);border-radius:14px;padding:7px 6px;text-align:center}
 .step-lbl{font-size:10.5px;color:var(--ink-soft);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .step-row{display:flex;align-items:center;gap:3px;justify-content:center}

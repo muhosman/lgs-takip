@@ -35,8 +35,9 @@ function goalCard(state) {
       <div class="goal-msg">${msg}</div>
       <div class="mini-stats">
         <div class="mini-stat"><b>${fmtNet(t.net)}</b>bugünkü net</div>
-        <div class="mini-stat"><b>${t.q ? Math.round((t.d / t.q) * 100) : 0}%</b>doğruluk</div>
-        <div class="mini-stat"><b>${t.s}</b>sorulacak</div>
+        <div class="mini-stat"><b>${t.own ? Math.round((t.d / t.own) * 100) : 0}%</b>doğruluk</div>
+        <div class="mini-stat"><b>${t.ct}</b>çözdürdüğüm</div>
+        <div class="mini-stat"><b>${t.xp}</b>bugünkü puan</div>
       </div>
     </div>
   </div>`;
@@ -57,7 +58,7 @@ function stepper(subject, metric, value) {
 
 function subjectCard(state, s) {
   const r = store.recOf(dayKey(), s.key);
-  const q = r.d + r.y + r.b;
+  const q = r.d + r.y + r.b + r.ct;          // çözdürdüğü de bir sorudur
   const main = METRICS.slice(0, 3);
   const extra = METRICS.slice(3);
   return `
@@ -78,7 +79,8 @@ export function render() {
     ${goalCard(state)}
     <div class="sec-title">Bugünün dersleri</div>
     <div class="subj-list">${SUBJECTS.map(s => subjectCard(state, s)).join('')}</div>
-    <p class="hint">Sayıya dokunup klavyeyle de yazabilirsin ✍️</p>
+    <p class="hint">Sayıya dokunup klavyeyle de yazabilirsin ✍️<br>
+    🧑‍🏫 Çözdürdüğün sorular da soru sayına eklenir ve <b>iki kat puan</b> kazandırır.</p>
   `;
 }
 
@@ -111,7 +113,7 @@ export function bind(root, ctx) {
       const r = store.recOf(key, s.key);
       const card = root.querySelector(`.subj [data-s="${s.key}"]`)?.closest('.subj');
       const netEl = card?.querySelector('.subj-net');
-      if (netEl) netEl.innerHTML = `<b>${r.d + r.y + r.b}</b> soru · <b>${fmtNet(netOf(r.d, r.y))}</b> net`;
+      if (netEl) netEl.innerHTML = `<b>${r.d + r.y + r.b + r.ct}</b> soru · <b>${fmtNet(netOf(r.d, r.y))}</b> net`;
     }
     void pct;
   };

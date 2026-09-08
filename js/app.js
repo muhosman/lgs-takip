@@ -17,11 +17,13 @@ const SESSION_KEY = 'lgs-unlocked';
 const WELCOME_QUOTES = [
   '"Dobby is a free elf"… ama LGS bitene kadar değil! 📚',
   'Sihir yok, sadece çözülen sorular var ✨ Hadi bakalım!',
+  'Bu sınava yalnız girmiyorsun — arkanda destekçin var 💛',
   'Bugün de bir avuç soru, bir kucak başarı 🌸',
   'Sınav salonuna değil, hedefine odaklan 🎯',
   'Kulakları büyük olanın azmi de büyük olur 😄',
   'Bir asa değil, bir kalemin var — daha güçlü ⚡',
   'Hogwarts kabul mektubu gelmedi ama LGS var 🦉',
+  'Omzundaki el diyor ki: sen yaparsın! 💪',
 ];
 
 const $ = s => document.querySelector(s);

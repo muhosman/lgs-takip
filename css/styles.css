@@ -324,3 +324,66 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   font-size:13px;color:var(--pink-deep);margin-bottom:16px;border:1.5px solid var(--pink-soft);
 }
 .welcome-count b{font-family:'Baloo 2',sans-serif;font-size:19px}
+
+/* ============ MOBİL DÜZELTMELERİ ============ */
+.d-short{display:none}
+
+@media (max-width:600px){
+  /* üst bar: uzun isim rozetleri dışarı itmesin */
+  .hello{flex:1;min-width:0}
+  .hello-text{font-size:19px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hello-date{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .top-badges{flex-shrink:0}
+  .chip{padding:6px 9px;font-size:12px}
+  .chip b{font-size:14px}
+
+  /* hedef kartı */
+  .goal-info{min-width:0}
+  .goal-head{font-size:16px}
+  .goal-msg{font-size:12.5px}
+
+  /* ders kartları: 3 sütun dar ekranda taşıyordu -> 2 sütun */
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .steps > .step:nth-child(3){grid-column:1 / -1}
+  .step-lbl{font-size:11px}
+  .step-row input{width:52px;font-size:17px}
+  .step-row button{width:29px;height:29px}
+  .subj-net{font-size:11px;padding:4px 8px}
+  .subj-name{font-size:15px}
+
+  /* iOS odaklanınca sayfayı yakınlaştırmasın (16px altı input'ta zoom yapar) */
+  .inp,.big-input,.dy-grid input,table.grid input{font-size:16px}
+
+  /* sekmeler 5 tane -> daralt */
+  .tabbar button{padding:5px 2px}
+  .tabbar button span{font-size:19px}
+  .tabbar button i{font-size:9.5px}
+}
+
+@media (max-width:600px){
+  /* çizelge: ilk iki sütun sabit kalsın, günler kayarak gezilsin */
+  .d-full{display:none}
+  .d-short{display:block;line-height:1.25}
+  table.grid{min-width:560px;font-size:11.5px}
+  table.grid th{padding:7px 3px;font-size:10px}
+  td.subj-cell{width:58px;font-size:10px;padding:4px 2px}
+  td.metric{width:96px;font-size:10px;padding:4px 5px}
+  table.grid input{height:32px}
+
+  td.subj-cell{position:sticky;left:0;z-index:1}
+  td.metric{position:sticky;left:58px;z-index:1}
+  table.grid th:nth-child(1){position:sticky;left:0;z-index:3}
+  table.grid th:nth-child(2){position:sticky;left:58px;z-index:3}
+  td.subj-cell::after,td.metric::after{
+    content:'';position:absolute;top:0;bottom:0;right:-1px;width:1px;background:#FCE6EE;
+  }
+  td.metric::after{box-shadow:2px 0 6px rgba(226,120,163,.13)}
+}
+
+@media (max-width:360px){
+  .app{padding-left:10px;padding-right:10px}
+  .step-row input{width:44px}
+  .step-row button{width:27px;height:27px}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .badges{grid-template-columns:repeat(3,1fr)}
+}

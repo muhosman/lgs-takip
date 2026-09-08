@@ -2,7 +2,7 @@
 import { SUBJECTS, METRICS } from '../data.js';
 import * as store from '../store.js';
 import {
-  weekStart, addDays, keyOf, todayKey, DAY_NAMES, DAY_EMOJI,
+  weekStart, addDays, keyOf, todayKey, DAY_NAMES, DAY_EMOJI, DAY_SHORT,
   fmtShort, clampInt, esc,
 } from '../utils.js';
 
@@ -26,7 +26,9 @@ export function render() {
 
   let head = '<tr><th>📚 DERS</th><th>💗 DURUM</th>';
   days.forEach((d, i) => {
-    head += `<th class="${keyOf(d) === tk ? 'today-col' : ''}">${DAY_NAMES[i]} ${DAY_EMOJI[i]}</th>`;
+    head += `<th class="${keyOf(d) === tk ? 'today-col' : ''}">`
+          + `<span class="d-full">${DAY_NAMES[i]} ${DAY_EMOJI[i]}</span>`
+          + `<span class="d-short">${DAY_SHORT[i].toUpperCase()}<br>${DAY_EMOJI[i]}</span></th>`;
   });
   head += '<th>TOPLAM 🏆</th></tr>';
 

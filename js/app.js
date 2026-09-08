@@ -103,9 +103,10 @@ function checkBadges() {
 
 /* ---------------- senkron ---------------- */
 const SYNC_ICONS = {
-  idle:    ['☁️', 'Buluta bağlı'],
+  idle:    ['☁️', 'Buluta bağlanılıyor…'],
   syncing: ['🔄', 'Eşitleniyor…'],
-  synced:  ['☁️', 'Tüm cihazlarla eşit'],
+  synced:  ['☁️', 'Eşitlendi'],
+  live:    ['🟢', 'Canlı — değişiklikler anında yansıyor'],
   offline: ['📴', 'Çevrimdışı — bağlanınca eşitlenecek'],
   error:   ['⚠️', 'Eşitleme sorunu'],
 };
@@ -114,12 +115,36 @@ function initSyncIndicator() {
   const chip = $('#syncChip');
   if (!sync.enabled()) return;
   chip.classList.remove('hidden');
-  sync.onStatus(s => {
+  sync.onStatus((s, peers) => {
     const [ico, label] = SYNC_ICONS[s] || SYNC_ICONS.idle;
-    chip.textContent = ico;
-    chip.title = label;
+    // birden fazla cihaz bağlıysa sayısını göster
+    chip.innerHTML = s === 'live' && peers > 1 ? `${ico}<b>${peers}</b>` : ico;
+    chip.title = s === 'live' && peers > 1
+      ? `Canlı · ${peers} cihaz bağlı — değişiklikler anında yansıyor`
+      : label;
     chip.classList.toggle('spin', s === 'syncing');
+    chip.classList.toggle('is-live', s === 'live');
   });
+}
+
+let applyingRemote = false;
+
+/** Uzaktan gelen belgeyi birleştirip ekranı tazeler. */
+function applyRemoteDoc(doc) {
+  if (!doc) return false;
+  applyingRemote = true;                 // birleştirme sonucu tekrar yayına dönmesin
+  let changed = false;
+  try {
+    changed = store.mergeRemote(doc);
+  } finally {
+    applyingRemote = false;
+  }
+  if (changed) {
+    refreshHeader();
+    renderTab(currentTab);
+    checkBadges();
+  }
+  return changed;
 }
 
 /** Sunucudaki veriyi çekip yerelle birleştirir. */
@@ -127,12 +152,7 @@ async function pullAndMerge() {
   if (!sync.enabled() || !activePin) return false;
   const remote = await sync.pull(activePin);
   if (!remote) return false;
-  const changed = store.mergeRemote(remote);
-  if (changed) {
-    refreshHeader();
-    renderTab(currentTab);
-  }
-  return changed;
+  return applyRemoteDoc(remote);
 }
 
 /** Giriş sonrası ilk eşitleme: önce çek-birleştir, sonra yereli buluta yaz. */
@@ -140,22 +160,28 @@ async function syncBoot() {
   if (!sync.enabled() || !activePin) return;
   await pullAndMerge();
   await sync.push(activePin, store.get());
+  // anlık kanal: diğer cihazlardaki değişiklikler saniyesinde düşsün
+  sync.connectLive(activePin, applyRemoteDoc);
 }
 
 function initSyncWatchers() {
   if (!sync.enabled()) return;
 
-  // her değişiklikten 1.5 sn sonra buluta yaz
+  // Değişiklikleri anlık kanaldan yolla. Kısa bir bekleme, art arda basılan
+  // +/- tuşlarını tek bir gönderimde toplamak için.
   store.subscribe(() => {
-    if (!activePin) return;
+    if (!activePin || applyingRemote) return;
     clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => sync.push(activePin, store.get()), 1500);
+    pushTimer = setTimeout(() => {
+      const doc = store.get();
+      if (!sync.sendLive(doc)) sync.push(activePin, doc);   // canlı kanal yoksa HTTP
+    }, 400);
   });
 
-  // sekmeye dönünce ve dakikada bir diğer cihazdaki değişiklikleri al
+  // Canlı bağlantı kopmuş olabilir diye yedek kontroller
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pullAndMerge(); });
   window.addEventListener('online', () => syncBoot());
-  setInterval(() => { if (!document.hidden) pullAndMerge(); }, 60000);
+  setInterval(() => { if (!document.hidden && !sync.live()) pullAndMerge(); }, 60000);
 }
 
 /* ---------------- yönlendirme ---------------- */
@@ -244,6 +270,7 @@ function showWelcome() {
 function lock() {
   activePin = '';
   clearTimeout(pushTimer);
+  sync.disconnectLive();
   sessionStorage.removeItem(SESSION_KEY);
   $('#app').classList.add('hidden');
   $('#onboard').classList.add('hidden');

@@ -464,3 +464,7 @@ ul.units{list-style:none;margin:0 0 11px;padding:0}
   .add-unit .inp{font-size:16px}
   .uname{font-size:13px}
 }
+
+/* canlı bağlantı göstergesi */
+.chip-sync.is-live{border-color:#9BE3C4;background:#F2FFF9}
+.chip-sync b{font-family:'Baloo 2',sans-serif;font-size:12px;margin-left:2px;color:var(--ok)}

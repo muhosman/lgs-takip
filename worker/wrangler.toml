@@ -3,7 +3,15 @@ main = "src/worker.js"
 compatibility_date = "2026-01-01"
 workers_dev = true
 
-# KV namespace id'si `wrangler kv:namespace create LGS` ile üretilir
+# Eski sürümden veri taşımak için tutuluyor
 [[kv_namespaces]]
 binding = "LGS"
 id = "0e9a4f0c16a742419accda3f8db06bf4"
+
+[[durable_objects.bindings]]
+name = "BOARD"
+class_name = "Board"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Board"]

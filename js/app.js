@@ -1,5 +1,6 @@
 // Uygulama çekirdeği: kilit ekranı, sekme yönlendirme, üst bar
 import * as store from './store.js';
+import * as sync from './sync.js';
 import { BADGES } from './data.js';
 import { summarize, levelInfo, earnedBadges } from './gamify.js';
 import { fmtLong, fmtDay, dateOf, daysBetween } from './utils.js';
@@ -28,6 +29,8 @@ const WELCOME_QUOTES = [
 
 const $ = s => document.querySelector(s);
 let currentTab = 'today';
+let activePin = '';       // doğrulanmış şifre — senkron çağrılarında kullanılır
+let pushTimer = null;
 
 /* ---------------- sakura ---------------- */
 function petals() {
@@ -97,8 +100,75 @@ function checkBadges() {
   }
 }
 
+/* ---------------- senkron ---------------- */
+const SYNC_ICONS = {
+  idle:    ['☁️', 'Buluta bağlı'],
+  syncing: ['🔄', 'Eşitleniyor…'],
+  synced:  ['☁️', 'Tüm cihazlarla eşit'],
+  offline: ['📴', 'Çevrimdışı — bağlanınca eşitlenecek'],
+  error:   ['⚠️', 'Eşitleme sorunu'],
+};
+
+function initSyncIndicator() {
+  const chip = $('#syncChip');
+  if (!sync.enabled()) return;
+  chip.classList.remove('hidden');
+  sync.onStatus(s => {
+    const [ico, label] = SYNC_ICONS[s] || SYNC_ICONS.idle;
+    chip.textContent = ico;
+    chip.title = label;
+    chip.classList.toggle('spin', s === 'syncing');
+  });
+}
+
+/** Sunucudaki veriyi çekip yerelle birleştirir. */
+async function pullAndMerge() {
+  if (!sync.enabled() || !activePin) return false;
+  const remote = await sync.pull(activePin);
+  if (!remote) return false;
+  const changed = store.mergeRemote(remote);
+  if (changed) {
+    refreshHeader();
+    renderTab(currentTab);
+  }
+  return changed;
+}
+
+/** Giriş sonrası ilk eşitleme: önce çek-birleştir, sonra yereli buluta yaz. */
+async function syncBoot() {
+  if (!sync.enabled() || !activePin) return;
+  await pullAndMerge();
+  await sync.push(activePin, store.get());
+}
+
+function initSyncWatchers() {
+  if (!sync.enabled()) return;
+
+  // her değişiklikten 1.5 sn sonra buluta yaz
+  store.subscribe(() => {
+    if (!activePin) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => sync.push(activePin, store.get()), 1500);
+  });
+
+  // sekmeye dönünce ve dakikada bir diğer cihazdaki değişiklikleri al
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pullAndMerge(); });
+  window.addEventListener('online', () => syncBoot());
+  setInterval(() => { if (!document.hidden) pullAndMerge(); }, 60000);
+}
+
 /* ---------------- yönlendirme ---------------- */
-const ctx = { toast, refreshHeader, checkBadges, rerender: () => renderTab(currentTab), lock };
+const ctx = {
+  toast, refreshHeader, checkBadges, lock,
+  rerender: () => renderTab(currentTab),
+  syncNow: async () => {
+    if (!sync.enabled()) { toast('Bulut eşitleme kapalı'); return; }
+    toast('Eşitleniyor…');
+    await pullAndMerge();
+    const ok = await sync.push(activePin, store.get());
+    toast(ok ? 'Eşitlendi ☁️' : 'Eşitlenemedi, bağlantını kontrol et');
+  },
+};
 
 function renderTab(tab) {
   currentTab = tab;
@@ -119,6 +189,7 @@ function startApp() {
   refreshHeader();
   renderTab('today');
   checkBadges();
+  syncBoot();
 }
 
 function afterUnlock() {
@@ -150,6 +221,8 @@ function showWelcome() {
 }
 
 function lock() {
+  activePin = '';
+  clearTimeout(pushTimer);
   sessionStorage.removeItem(SESSION_KEY);
   $('#app').classList.add('hidden');
   $('#onboard').classList.add('hidden');
@@ -175,8 +248,20 @@ function pushDigit(d) {
   if (pin.length === 6) setTimeout(tryPin, 140);
 }
 
-function tryPin() {
-  if (pin === store.get().pin) {
+async function tryPin() {
+  let ok;
+  if (sync.enabled()) {
+    $('#lockSub').textContent = 'Kontrol ediliyor… ⏳';
+    $('#lockSub').classList.remove('err');
+    const remote = await sync.login(pin);
+    // sunucuya ulaşılamadıysa (remote === null) çevrimdışı olarak yerel şifreye bak
+    ok = remote === null ? pin === store.get().pin : remote;
+  } else {
+    ok = pin === store.get().pin;
+  }
+
+  if (ok) {
+    activePin = pin;
     $('#lockSub').textContent = 'Hoş geldin! 🌸';
     $('#lockSub').classList.remove('err');
     setTimeout(afterUnlock, 260);
@@ -226,6 +311,8 @@ function init() {
   petals();
   initLock();
   initOnboard();
+  initSyncIndicator();
+  initSyncWatchers();
 
   $('#tabbar').addEventListener('click', e => {
     const b = e.target.closest('button[data-tab]');
@@ -242,6 +329,7 @@ function init() {
   });
 
   if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    activePin = store.get().pin;
     if (store.get().name) startApp();
     else { $('#lock').classList.add('hidden'); $('#onboard').classList.remove('hidden'); }
   }

@@ -1,5 +1,6 @@
 // "Ayarlar" ekranı — kişiselleştirme, yedekleme, sıfırlama
 import * as store from '../store.js';
+import * as sync from '../sync.js';
 import { esc, clampInt, dateOf, fmtLong, daysBetween, todayKey } from '../utils.js';
 
 export function render() {
@@ -33,10 +34,22 @@ export function render() {
     <button type="button" id="savePin" class="btn-ghost">Şifreyi güncelle</button>
   </div>
 
+  ${sync.enabled() ? `
+  <div class="card">
+    <div class="card-title">☁️ Bulut eşitleme</div>
+    <p class="hint" style="text-align:left;margin:0 0 11px">
+      Kayıtların buluta yazılıyor — telefondan girdiğin bilgisayarda da görünür.
+      Eşitleme kendiliğinden olur; istersen elle de tetikleyebilirsin.
+    </p>
+    <button type="button" id="syncBtn" class="btn-ghost">🔄 Şimdi eşitle</button>
+  </div>` : ''}
+
   <div class="card">
     <div class="card-title">💾 Yedekleme</div>
     <p class="hint" style="text-align:left;margin:0 0 11px">
-      Veriler bu tarayıcıda saklanır. Telefon değiştirirsen veya tarayıcıyı temizlersen kaybolmasın diye ara ara yedek al 🌸
+      ${sync.enabled()
+        ? 'Buluttaki verinin bir kopyasını dosya olarak da saklamak istersen 🌸'
+        : 'Veriler bu tarayıcıda saklanır. Telefon değiştirirsen veya tarayıcıyı temizlersen kaybolmasın diye ara ara yedek al 🌸'}
     </p>
     <div class="btn-row">
       <button type="button" id="exportBtn" class="btn-ghost">⬇️ Yedek indir</button>
@@ -47,7 +60,7 @@ export function render() {
 
   <div class="card">
     <div class="card-title">🧹 Sıfırla</div>
-    <p class="hint" style="text-align:left;margin:0 0 11px">Tüm soru kayıtları ve denemeler silinir. Ayarların korunur.</p>
+    <p class="hint" style="text-align:left;margin:0 0 11px">Tüm soru kayıtları ve denemeler silinir. Ayarların korunur.${sync.enabled() ? ' Buluttaki kopya da silinir.' : ''}</p>
     <button type="button" id="resetBtn" class="btn-danger">Tüm verileri sil</button>
   </div>
 
@@ -131,6 +144,8 @@ export function bind(root, ctx) {
     ctx.rerender();
     ctx.toast('Veriler sıfırlandı');
   });
+
+  $('#syncBtn')?.addEventListener('click', () => ctx.syncNow());
 
   $('#lockBtn').addEventListener('click', () => ctx.lock());
 }

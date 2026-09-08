@@ -387,3 +387,8 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   .stat-grid{grid-template-columns:1fr 1fr}
   .badges{grid-template-columns:repeat(3,1fr)}
 }
+
+/* senkron göstergesi */
+.chip-sync{font-size:14px;padding:7px 9px;line-height:1}
+.chip-sync.spin{animation:spin 1.1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}

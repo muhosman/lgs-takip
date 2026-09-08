@@ -12,9 +12,11 @@ const defaults = () => ({
   name: '',
   dailyGoal: 60,
   examDate: '2027-06-06',
-  days: {},      // 'YYYY-MM-DD' -> { turkce:{d,y,b,s,ct}, ... }
-  exams: [],     // { id, name, date, subjects:{ key:{d,y} } }
+  days: {},           // 'YYYY-MM-DD' -> { _t: zaman damgası, turkce:{d,y,b,s,ct}, ... }
+  exams: [],          // { id, name, date, subjects:{ key:{d,y} } }
+  deletedExams: [],   // silinen denemeler senkronda geri gelmesin
   seenBadges: [],
+  updatedAt: 0,       // ayarların son değişme zamanı (birleştirmede kullanılır)
   createdAt: new Date().toISOString(),
 });
 
@@ -46,6 +48,7 @@ export const subscribe = fn => { listeners.add(fn); return () => listeners.delet
 
 export function setMeta(patch) {
   Object.assign(state, patch);
+  state.updatedAt = Date.now();
   save();
 }
 
@@ -68,6 +71,7 @@ export function setValue(key, subject, metric, value) {
   if (!state.days[key]) state.days[key] = {};
   if (!state.days[key][subject]) state.days[key][subject] = emptyRec();
   state.days[key][subject][metric] = v;
+  state.days[key]._t = Date.now();
   pruneDay(key);
   save();
   return v;
@@ -77,20 +81,25 @@ function pruneDay(key) {
   const day = state.days[key];
   if (!day) return;
   for (const sk of Object.keys(day)) {
+    if (sk === '_t') continue;                       // zaman damgası bir ders kaydı değil
     const r = day[sk];
     if (!r || Object.values(r).every(n => !n)) delete day[sk];
   }
-  if (!Object.keys(day).length) delete state.days[key];
+  // sadece zaman damgası kaldıysa gün de boştur
+  if (!Object.keys(day).some(k => k !== '_t')) delete state.days[key];
 }
 
 export function addExam(exam) {
   state.exams.push(exam);
   state.exams.sort((a, b) => a.date.localeCompare(b.date));
+  state.updatedAt = Date.now();
   save();
 }
 
 export function removeExam(id) {
   state.exams = state.exams.filter(e => e.id !== id);
+  if (!state.deletedExams.includes(id)) state.deletedExams.push(id);
+  state.updatedAt = Date.now();
   save();
 }
 
@@ -116,3 +125,48 @@ export function resetAll() {
 }
 
 export const SUBJECT_KEYS = SUBJECTS.map(s => s.key);
+
+/**
+ * Yerel ve uzak belgeyi birleştirir.
+ * - Günler: gün bazında daha yeni zaman damgası kazanır (cihazlar farklı günleri
+ *   doldurmuşsa ikisi de korunur).
+ * - Denemeler: id'ye göre birleşir, silinenler geri gelmez.
+ * - Ayarlar: `updatedAt` daha yeni olan belgeden alınır.
+ */
+export function mergeDocs(a, b) {
+  const newer = (b.updatedAt || 0) > (a.updatedAt || 0) ? b : a;
+  const older = newer === a ? b : a;
+  const out = { ...defaults(), ...older, ...newer };
+
+  const days = {};
+  for (const k of new Set([...Object.keys(a.days || {}), ...Object.keys(b.days || {})])) {
+    const da = (a.days || {})[k];
+    const db = (b.days || {})[k];
+    if (!da) { days[k] = db; continue; }
+    if (!db) { days[k] = da; continue; }
+    days[k] = (db._t || 0) >= (da._t || 0) ? db : da;
+  }
+  out.days = days;
+
+  const deleted = new Set([...(a.deletedExams || []), ...(b.deletedExams || [])]);
+  const byId = new Map();
+  for (const e of [...(a.exams || []), ...(b.exams || [])]) byId.set(e.id, e);
+  out.exams = [...byId.values()]
+    .filter(e => !deleted.has(e.id))
+    .sort((x, y) => x.date.localeCompare(y.date));
+  out.deletedExams = [...deleted];
+
+  out.seenBadges = [...new Set([...(a.seenBadges || []), ...(b.seenBadges || [])])];
+  out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);
+  return out;
+}
+
+/** Uzak belgeyi yerelle birleştirip yerine koyar. Değişiklik olduysa true döner. */
+export function mergeRemote(remote) {
+  if (!remote || typeof remote !== 'object') return false;
+  const before = JSON.stringify(state);
+  state = mergeDocs(state, remote);
+  const changed = JSON.stringify(state) !== before;
+  save();
+  return changed;
+}

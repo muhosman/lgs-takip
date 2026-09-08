@@ -1,0 +1,9 @@
+name = "lgs-takip-api"
+main = "src/worker.js"
+compatibility_date = "2026-01-01"
+workers_dev = true
+
+# KV namespace id'si `wrangler kv:namespace create LGS` ile üretilir
+[[kv_namespaces]]
+binding = "LGS"
+id = "PLACEHOLDER"

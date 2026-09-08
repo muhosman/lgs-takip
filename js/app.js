@@ -173,10 +173,20 @@ const ctx = {
 function renderTab(tab) {
   currentTab = tab;
   const view = VIEWS[tab];
-  const root = $('#view');
+
+  // Görünümler dinleyicilerini kapsayıcının KENDİSİNE bağlıyor (olay delegasyonu).
+  // Sadece innerHTML değiştirilseydi eski dinleyiciler elemanda kalır ve her
+  // render'da bir yenisi eklenirdi: tek tık birden çok kez işlenirdi.
+  // Bu yüzden kapsayıcıyı her seferinde sıfırdan oluşturup yerine koyuyoruz.
+  const old = $('#view');
+  const root = document.createElement('main');
+  root.id = 'view';
+  root.className = 'view';
   root.innerHTML = view.render();
-  root.scrollTop = 0;
+  old.replaceWith(root);
+
   view.bind(root, ctx);
+  window.scrollTo(0, 0);
   document.querySelectorAll('#tabbar button').forEach(b =>
     b.classList.toggle('on', b.dataset.tab === tab));
 }

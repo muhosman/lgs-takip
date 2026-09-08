@@ -19,6 +19,7 @@ const defaults = () => ({
   deletedBooks: [],
   seenBadges: [],
   updatedAt: 0,       // ayarların son değişme zamanı (birleştirmede kullanılır)
+  resetAt: 0,         // "verileri sıfırla" anı; bundan eskisi birleştirmede düşer
   createdAt: new Date().toISOString(),
 });
 
@@ -33,6 +34,7 @@ export function load() {
     console.warn('Kayıt okunamadı, sıfırdan başlanıyor', e);
     state = defaults();
   }
+  sweepTombstones();
   return state;
 }
 
@@ -87,12 +89,23 @@ function pruneDay(key) {
     const r = day[sk];
     if (!r || Object.values(r).every(n => !n)) delete day[sk];
   }
-  // sadece zaman damgası kaldıysa gün de boştur
-  if (!Object.keys(day).some(k => k !== '_t')) delete state.days[key];
+  // Gün tamamen boşalsa bile kaydı SİLMİYORUZ; geriye zaman damgası kalıyor.
+  // Silseydik diğer cihaz "bu günü hiç bilmiyor" sanıp kendi eski kaydını
+  // korurdu ve sıfırlama hiçbir zaman yayılmazdı.
+}
+
+/** Uzun süredir boş duran gün kayıtlarını temizler (senkron penceresinin çok ötesi) */
+function sweepTombstones() {
+  const limit = Date.now() - 60 * 86400000;
+  for (const k of Object.keys(state.days)) {
+    const day = state.days[k];
+    const empty = !Object.keys(day).some(x => x !== '_t');
+    if (empty && (day._t || 0) < limit) delete state.days[k];
+  }
 }
 
 export function addExam(exam) {
-  state.exams.push(exam);
+  state.exams.push({ ...exam, _t: Date.now() });
   state.exams.sort((a, b) => a.date.localeCompare(b.date));
   state.updatedAt = Date.now();
   save();
@@ -203,7 +216,16 @@ export function replaceAll(obj) {
 
 export function resetAll() {
   const keep = { pin: state.pin, name: state.name, dailyGoal: state.dailyGoal, examDate: state.examDate };
-  state = { ...defaults(), ...keep };
+  const now = Date.now();
+
+  // Sıfırlamanın diğer cihazlara da yayılması için: bilinen günlere mezar taşı,
+  // deneme ve kitapların id'leri silinenler listesine, ayrıca bir sıfırlama anı.
+  const days = {};
+  for (const k of Object.keys(state.days)) days[k] = { _t: now };
+  const deletedExams = [...new Set([...state.deletedExams, ...state.exams.map(e => e.id)])];
+  const deletedBooks = [...new Set([...state.deletedBooks, ...state.books.map(b => b.id)])];
+
+  state = { ...defaults(), ...keep, days, deletedExams, deletedBooks, resetAt: now, updatedAt: now };
   save();
 }
 
@@ -251,6 +273,17 @@ export function mergeDocs(a, b) {
 
   out.seenBadges = [...new Set([...(a.seenBadges || []), ...(b.seenBadges || [])])];
   out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);
+
+  // Bir cihazda "verileri sıfırla" yapıldıysa, o andan ESKİ her kayıt düşer.
+  const resetAt = Math.max(a.resetAt || 0, b.resetAt || 0);
+  out.resetAt = resetAt;
+  if (resetAt) {
+    for (const k of Object.keys(out.days)) {
+      if ((out.days[k]._t || 0) < resetAt) out.days[k] = { _t: resetAt };
+    }
+    out.exams = out.exams.filter(e => (e._t || 0) >= resetAt);
+    out.books = out.books.filter(bk => (bk._t || 0) >= resetAt);
+  }
   return out;
 }
 

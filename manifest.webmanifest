@@ -1,0 +1,17 @@
+{
+  "name": "LGS Takip Çizelgem",
+  "short_name": "LGS Takip",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FFF3F7",
+  "theme_color": "#FFF3F7",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%23FFE4F0'/%3E%3Ctext x='96' y='134' font-size='110' text-anchor='middle'%3E%F0%9F%8C%B8%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

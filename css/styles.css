@@ -532,7 +532,7 @@ textarea.ta{height:auto;padding:11px 13px;line-height:1.55;resize:vertical;min-h
   overscroll-behavior:contain;
   padding:13px 14px calc(16px + env(safe-area-inset-bottom));
 }
-body.drawer-open{overflow:hidden}
+body.drawer-open,body.modal-open{overflow:hidden}
 
 /* üniteler */
 ul.units{list-style:none;margin:0 0 11px;padding:0}
@@ -734,4 +734,48 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
   .wrow{gap:6px;padding:8px 10px}
   .w-en{font-size:13.5px}
   .w-tr{font-size:12px}
+}
+
+/* ============ KELİME EKLEME MODAL'I ============ */
+.modal-scrim{
+  position:fixed;inset:0;z-index:50;background:rgba(90,61,78,.38);
+  backdrop-filter:blur(2px);animation:scrim-in .2s ease;
+}
+.modal{
+  position:fixed;z-index:51;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(470px,94vw);max-height:min(88vh,720px);
+  display:flex;flex-direction:column;
+  background:var(--card);border:1.5px solid var(--pink-soft);border-radius:24px;
+  box-shadow:0 22px 60px rgba(226,120,163,.3);
+  animation:modal-in .24s cubic-bezier(.2,1.1,.35,1);
+}
+@keyframes modal-in{from{opacity:0;transform:translate(-50%,-46%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.modal,.modal-scrim{animation:none}}
+
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;
+  padding:15px 16px 11px;border-bottom:1px solid var(--line);
+}
+.modal-title{font-family:'Baloo 2',sans-serif;font-size:17px;color:var(--pink-deep)}
+.modal-modes{display:flex;gap:7px;flex-shrink:0;padding:12px 16px 0}
+.modal-modes .subtab{flex:1}
+.modal-body{
+  flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;padding:13px 16px;
+}
+.modal-foot{
+  flex-shrink:0;padding:11px 16px calc(14px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--line);
+}
+.modal-count{display:block;font-size:12px;color:var(--ok);margin-bottom:9px;font-weight:700}
+.modal-foot .btn-row > *{flex:1}
+
+@media (max-width:480px){
+  /* telefonda alttan oturan bir sayfa gibi dursun: başparmakla erişilebilir */
+  .modal{
+    top:auto;bottom:0;left:0;transform:none;width:100%;
+    max-height:92vh;border-radius:24px 24px 0 0;border-bottom:0;
+    animation:sheet-in .26s cubic-bezier(.2,1.05,.35,1);
+  }
+  @keyframes sheet-in{from{transform:translateY(100%)}to{transform:none}}
 }

@@ -8,7 +8,6 @@ import {
 } from '../utils.js';
 
 let anchor = weekStart(new Date()); // görüntülenen hafta
-let offResize = null;               // önceki render'ın resize dinleyicisi
 
 const ROWS = [
   { key:'q',  label:'✏️ Toplam Soru', auto:true },   // doğru + yanlış + boş + çözdürdüğüm
@@ -35,10 +34,9 @@ function goalInner(done, goal) {
 
 const isHit = (done, goal) => goal > 0 && done >= goal;
 
-function goalCell(id, done, goal, extraCls = '') {
-  const cls = ['goal-h', extraCls, isHit(done, goal) ? 'hit' : ''].filter(Boolean).join(' ');
-  return `<th class="${cls}" data-goal="${id}">${goalInner(done, goal)}</th>`;
-}
+/** Başlık hücresinin alt şeridi — gün adının hemen altında, aynı hücrenin içinde */
+const goalWrap = (id, done, goal) =>
+  `<span class="goal-wrap" data-goal="${id}">${goalInner(done, goal)}</span>`;
 
 export function render() {
   const days = Array.from({ length: 7 }, (_, i) => addDays(anchor, i));
@@ -46,26 +44,20 @@ export function render() {
   const end = days[6];
   const label = `${fmtShort(anchor)} – ${fmtShort(end)} ${end.getFullYear()}`;
 
-  let head = '<tr><th rowspan="2">📚 DERS</th><th rowspan="2">💗 DURUM</th>';
-  days.forEach((d, i) => {
-    head += `<th class="${keyOf(d) === tk ? 'today-col' : ''}">`
-          + `<span class="d-full">${DAY_NAMES[i]} ${DAY_EMOJI[i]}</span>`
-          + `<span class="d-short">${DAY_SHORT[i].toUpperCase()}<br>${DAY_EMOJI[i]}</span></th>`;
-  });
-  head += '<th>TOPLAM 🏆</th></tr>';
-
-  // Gün başlıklarının altındaki hedef/ilerleme şeridi
-  let goalRow = '<tr class="goal-row">';
+  let head = '<tr><th>📚 DERS</th><th>💗 DURUM</th>';
   let wDone = 0, wGoal = 0;
-  for (const d of days) {
+  days.forEach((d, i) => {
     const k = keyOf(d);
     const done = dayQ(k);
     const goal = store.goalFor(k);     // o gün yürürlükte olan hedef
     wDone += done; wGoal += goal;
-    goalRow += goalCell(k, done, goal, k === tk ? 'today-col' : '');
-  }
-  goalRow += goalCell('week', wDone, wGoal, 'week-goal') + '</tr>';
-  head += goalRow;
+    const cls = ['day-h', k === tk ? 'today-col' : '', isHit(done, goal) ? 'hit' : ''].filter(Boolean).join(' ');
+    head += `<th class="${cls}">`
+          + `<span class="d-full">${DAY_NAMES[i]} ${DAY_EMOJI[i]}</span>`
+          + `<span class="d-short">${DAY_SHORT[i].toUpperCase()}<br>${DAY_EMOJI[i]}</span>`
+          + goalWrap(k, done, goal) + '</th>';
+  });
+  head += `<th class="day-h week-goal">TOPLAM 🏆${goalWrap('week', wDone, wGoal)}</th></tr>`;
 
   let body = '';
   for (const s of SUBJECTS) {
@@ -113,10 +105,10 @@ export function bind(root, ctx) {
   const days = Array.from({ length: 7 }, (_, i) => keyOf(addDays(anchor, i)));
 
   const paintGoal = (id, done, goal) => {
-    const th = root.querySelector(`[data-goal="${id}"]`);
-    if (!th) return;
-    th.innerHTML = goalInner(done, goal);
-    th.classList.toggle('hit', isHit(done, goal));
+    const wrap = root.querySelector(`[data-goal="${id}"]`);
+    if (!wrap) return;
+    wrap.innerHTML = goalInner(done, goal);
+    wrap.closest('th')?.classList.toggle('hit', isHit(done, goal));
   };
 
   const refreshGoals = () => {
@@ -129,19 +121,6 @@ export function bind(root, ctx) {
     }
     paintGoal('week', wDone, wGoal);
   };
-
-  // İkinci başlık satırı ilkinin altına yapışsın diye gerçek yüksekliği ölçüyoruz
-  const alignSticky = () => {
-    const firstTh = root.querySelector('table.grid thead tr:first-child th');
-    const wrap = root.querySelector('.table-wrap');
-    if (firstTh && wrap) wrap.style.setProperty('--wk-head-h', `${firstTh.offsetHeight}px`);
-  };
-  alignSticky();
-  requestAnimationFrame(alignSticky);   // yazı tipleri yüklendikten sonra tekrar ölç
-  // Kapsayıcı her render'da yenilenir ama window dinleyicisi kalır: öncekini bırak
-  if (offResize) window.removeEventListener('resize', offResize);
-  offResize = alignSticky;
-  window.addEventListener('resize', alignSticky);
 
   const recalc = (subject, metricKey) => {
     // ilgili satırın toplamı

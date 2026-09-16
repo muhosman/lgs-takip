@@ -1,6 +1,6 @@
 // localStorage tabanlı tek kaynaklı veri deposu
 import { SUBJECTS } from './data.js';
-import { clampInt } from './utils.js';
+import { clampInt, goalListOf, goalOf, todayKey } from './utils.js';
 
 const KEY = 'lgs-takip-v1';
 
@@ -10,7 +10,8 @@ const defaults = () => ({
   version: 1,
   pin: '050669',
   name: '',
-  dailyGoal: 60,
+  dailyGoal: 60,      // bugünün hedefi (goalHistory'den türetilir, hızlı okuma için saklanır)
+  goalHistory: [],    // [{ from:'YYYY-MM-DD', goal, _t }] — hedefin o tarihten itibaren geçerli hâli
   examDate: '2027-06-06',
   days: {},           // 'YYYY-MM-DD' -> { _t: zaman damgası, turkce:{d,y,b,s,ct}, ... }
   exams: [],          // { id, name, date, subjects:{ key:{d,y} } }
@@ -55,6 +56,29 @@ export function setMeta(patch) {
   Object.assign(state, patch);
   state.updatedAt = Date.now();
   save();
+}
+
+/* ---------------- günlük hedef ---------------- */
+
+/** Verilen günde yürürlükte olan hedef (geçmiş günler eski hedefiyle kalır) */
+export const goalFor = key => goalOf(state, key);
+
+/**
+ * Hedefi BUGÜNDEN İTİBAREN değiştirir; geçmiş günler eski hedefini korur.
+ * Aynı gün içinde tekrar değiştirilirse o günün kaydı güncellenir.
+ */
+export function setGoal(value) {
+  const v = clampInt(value, 0, 999);
+  const key = todayKey();
+  // goalListOf değişiklikten ÖNCE çağrılmalı: geçmiş kayıt yoksa eski hedefi tabana yazar
+  const hist = goalListOf(state).filter(e => e.from !== key);
+  hist.push({ from: key, goal: v, _t: Date.now() });
+  hist.sort((a, b) => a.from.localeCompare(b.from));
+  state.goalHistory = hist;
+  state.dailyGoal = v;
+  state.updatedAt = Date.now();
+  save();
+  return v;
 }
 
 /** Bir günün tüm ders kayıtlarını döndürür (kopya değil, okuma amaçlı) */
@@ -227,7 +251,10 @@ export function replaceAll(obj) {
 }
 
 export function resetAll() {
-  const keep = { pin: state.pin, name: state.name, dailyGoal: state.dailyGoal, examDate: state.examDate };
+  const keep = {
+    pin: state.pin, name: state.name, examDate: state.examDate,
+    dailyGoal: state.dailyGoal, goalHistory: state.goalHistory,
+  };
   const now = Date.now();
 
   // Sıfırlamanın diğer cihazlara da yayılması için: bilinen günlere mezar taşı,
@@ -282,6 +309,17 @@ export function mergeDocs(a, b) {
   }
   out.books = [...books.values()].filter(bk => !deletedB.has(bk.id));
   out.deletedBooks = [...deletedB];
+
+  // Hedef geçmişi tarihe göre birleşir; aynı günü iki cihaz da değiştirdiyse yenisi kazanır.
+  // (Ayarlarla birlikte toptan alınsaydı eski cihazın belgesi tüm geçmişi silebilirdi.)
+  const goals = new Map();
+  for (const e of [...(a.goalHistory || []), ...(b.goalHistory || [])]) {
+    if (!e || typeof e.from !== 'string') continue;
+    const cur = goals.get(e.from);
+    if (!cur || (e._t || 0) >= (cur._t || 0)) goals.set(e.from, e);
+  }
+  out.goalHistory = [...goals.values()].sort((x, y) => x.from.localeCompare(y.from));
+  if (out.goalHistory.length) out.dailyGoal = goalOf(out, todayKey());
 
   out.seenBadges = [...new Set([...(a.seenBadges || []), ...(b.seenBadges || [])])];
   out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);

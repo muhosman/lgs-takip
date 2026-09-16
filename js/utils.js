@@ -64,3 +64,32 @@ export const esc = s => String(s).replace(/[&<>"']/g, c =>
   ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
 export const subjColor = key => (SUBJ_MAP[key] ? SUBJ_MAP[key].color : '#EEE');
+
+/* ---------- günlük hedef geçmişi ---------- */
+// Hedef değiştiğinde geçmiş günler eski hedefiyle kalsın diye hedefin geçmişi
+// tutulur: { from:'YYYY-MM-DD', goal, _t } kaydı o tarihten İTİBAREN geçerlidir.
+export const GOAL_EPOCH = '2000-01-01';
+
+/** Belgedeki hedef geçmişini temizleyip tarihe göre sıralar (hiç yoksa mevcut hedefi taban alır) */
+export function goalListOf(doc) {
+  const raw = Array.isArray(doc && doc.goalHistory) ? doc.goalHistory : [];
+  const list = raw
+    .filter(e => e && typeof e.from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.from))
+    .map(e => ({ from: e.from, goal: clampInt(e.goal, 0, 999), _t: e._t || 0 }))
+    .sort((a, b) => a.from.localeCompare(b.from));
+  if (!list.length) {
+    list.push({ from: GOAL_EPOCH, goal: clampInt(doc && doc.dailyGoal, 0, 999), _t: 0 });
+  }
+  return list;
+}
+
+/** Verilen günde yürürlükte olan günlük hedef */
+export function goalOf(doc, dayKey) {
+  const list = goalListOf(doc);
+  let goal = list[0].goal;            // ilk kayıttan eski günler en eski hedefi kullanır
+  for (const e of list) {
+    if (e.from > dayKey) break;
+    goal = e.goal;
+  }
+  return goal;
+}

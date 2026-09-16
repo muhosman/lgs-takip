@@ -11,7 +11,7 @@ const dayKey = todayKey; // her render'da yeniden okunur (gece yarısını geçs
 function goalCard(state) {
   const key = dayKey();
   const t = dayTotals(state.days[key]);
-  const goal = state.dailyGoal || 0;
+  const goal = store.goalFor(key) || 0;
   const pct = goal ? Math.min(100, (t.q / goal) * 100) : 0;
   const done = goal > 0 && t.q >= goal;
 
@@ -89,7 +89,7 @@ export function bind(root, ctx) {
 
   const afterChange = () => {
     const t = dayTotals(store.get().days[key]);
-    const goal = store.get().dailyGoal || 0;
+    const goal = store.goalFor(key) || 0;
     const flag = 'goal-' + key;
     if (goal > 0 && t.q >= goal && sessionStorage.getItem(flag) !== '1') {
       sessionStorage.setItem(flag, '1');
@@ -103,7 +103,7 @@ export function bind(root, ctx) {
   // Kartın tamamını yeniden çizmeden sadece başlık ve hedef alanını tazele
   const softUpdate = () => {
     const t = dayTotals(store.get().days[key]);
-    const goal = store.get().dailyGoal || 0;
+    const goal = store.goalFor(key) || 0;
     const pct = goal ? Math.min(100, (t.q / goal) * 100) : 0;
     const gc = root.querySelector('.goal-card');
     if (gc) {

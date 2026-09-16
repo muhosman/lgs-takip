@@ -4,11 +4,21 @@ import * as store from '../store.js';
 import { esc } from '../utils.js';
 import { confetti } from '../confetti.js';
 
-// Görünüm yeniden çizildiğinde açık kalan kartlar ve düzenlenen satırlar korunsun
-const expanded = new Set();
+// Görünüm yeniden çizildiğinde açık kitap ve düzenlenen satırlar korunsun
 const editing = new Set();
 let formOpen = false;
 let formSubject = SUBJECTS[0].key;
+
+let openId = null;        // detayı açık olan kitap
+let drawerScroll = 0;     // yeniden çizimde kaydırma konumu kaybolmasın
+let justOpened = false;   // açılış animasyonu yalnızca ilk açılışta oynasın
+let escHandler = null;    // önceki render'ın Esc dinleyicisi
+
+function openDrawer(id) {
+  openId = id;
+  drawerScroll = 0;
+  justOpened = true;
+}
 
 const progressOf = book => {
   const total = book.units.length;
@@ -84,10 +94,10 @@ function unitRow(book, u) {
 function bookCard(book) {
   const s = SUBJ_MAP[book.subject] || SUBJECTS[0];
   const { total, done, pct, finished } = progressOf(book);
-  const open = expanded.has(book.id);
 
+  // Detay artık sağdaki drawer'da; kart hep aynı boyutta kalıyor.
   return `
-  <div class="book ${finished ? 'finished' : ''}" style="--c:${s.color};--i:${s.ink}">
+  <div class="book ${finished ? 'finished' : ''} ${openId === book.id ? 'active' : ''}" style="--c:${s.color};--i:${s.ink}">
     <div class="book-head" data-expand="${book.id}">
       <span class="book-emoji">${finished ? '🎓' : s.emoji}</span>
       <div class="book-main">
@@ -96,11 +106,33 @@ function bookCard(book) {
         <div class="pbar"><div class="pfill" style="width:${pct}%"></div></div>
       </div>
       <span class="book-pct">%${Math.round(pct)}</span>
-      <span class="book-caret ${open ? 'open' : ''}">▾</span>
+      <span class="book-caret">›</span>
     </div>
+  </div>`;
+}
 
-    ${open ? `
-    <div class="book-body">
+/** Sağdan açılan kitap detayı */
+function drawer() {
+  const book = openId ? store.findBook(openId) : null;
+  if (!book) return '';
+  const s = SUBJ_MAP[book.subject] || SUBJECTS[0];
+  const { total, done, pct, finished } = progressOf(book);
+
+  return `
+  <div class="drawer-scrim" data-closedrawer></div>
+  <aside class="drawer ${justOpened ? 'opening' : ''}" style="--c:${s.color};--i:${s.ink}"
+         role="dialog" aria-modal="true" aria-label="${esc(book.name)}">
+    <div class="drawer-head">
+      <span class="book-emoji">${finished ? '🎓' : s.emoji}</span>
+      <div class="drawer-title">
+        <div class="book-name">${esc(book.name)}</div>
+        <div class="book-sub">${esc(s.name)} · ${done}/${total} ünite · %${Math.round(pct)}</div>
+      </div>
+      <button type="button" class="drawer-x" data-closedrawer aria-label="kapat">✕</button>
+    </div>
+    <div class="pbar drawer-pbar"><div class="pfill" style="width:${pct}%"></div></div>
+
+    <div class="drawer-body">
       ${total
         ? `<ul class="units">${book.units.map(u => unitRow(book, u)).join('')}</ul>`
         : `<p class="hint" style="margin:4px 0 10px">Bu kitapta henüz ünite yok.</p>`}
@@ -114,14 +146,15 @@ function bookCard(book) {
         <button type="button" class="btn-ghost" data-renamebook="${book.id}">✎ Kitabın adını değiştir</button>
         <button type="button" class="btn-danger" data-delbook="${book.id}">🗑 Kitabı sil</button>
       </div>
-    </div>` : ''}
-  </div>`;
+    </div>
+  </aside>`;
 }
 
 export function render() {
   const books = store.get().books || [];
 
   if (!books.length) {
+    openId = null;
     return `
       ${addForm()}
       <div class="card"><div class="empty"><div>📚</div>
@@ -141,15 +174,41 @@ export function render() {
     ${groups.map(g => `
       <div class="sec-title">${g.s.emoji} ${esc(g.s.name)}</div>
       <div class="grid-cards">${g.list.map(bookCard).join('')}</div>
-    `).join('')}`;
+    `).join('')}
+    ${drawer()}`;
 }
 
 export function bind(root, ctx) {
   const $ = sel => root.querySelector(sel);
   const parse = v => v.split('|');
 
+  // Drawer açıkken arka plan kaymasın (app.js her sekme geçişinde bu sınıfı temizler)
+  document.body.classList.toggle('drawer-open', !!openId);
+
+  // Kaydırma konumu: yeniden çizim ünite işaretlemede olduğu gibi sık; başa dönmesin
+  const dBody = $('.drawer-body');
+  if (dBody) {
+    dBody.scrollTop = drawerScroll;
+    dBody.addEventListener('scroll', () => { drawerScroll = dBody.scrollTop; });
+  }
+  justOpened = false;   // animasyon oynadı; sonraki çizimlerde tekrarlanmasın
+
+  const close = () => { openId = null; ctx.rerender(); };
+
+  // Esc ile kapat. Kapsayıcı her render'da yenilendiği için önceki dinleyici bırakılır;
+  // sekme değişirse root DOM'dan kopar ve dinleyici sessizce devre dışı kalır.
+  if (escHandler) document.removeEventListener('keydown', escHandler);
+  escHandler = e => {
+    if (e.key !== 'Escape' || !openId || !root.isConnected) return;
+    close();
+  };
+  document.addEventListener('keydown', escHandler);
+
   root.addEventListener('click', e => {
     const t = e.target;
+
+    // --- drawer kapat ---
+    if (t.closest('[data-closedrawer]')) { close(); return; }
 
     // --- form aç/kapat ---
     if (t.closest('#openForm')) { formOpen = true; ctx.rerender(); return; }
@@ -165,18 +224,17 @@ export function bind(root, ctx) {
       if (!name) { ctx.toast('Kitabın adını yazar mısın? 🙂'); return; }
       const book = store.addBook({ subject: formSubject, name, unitNames: units });
       formOpen = false;
-      expanded.add(book.id);
+      openDrawer(book.id);
       ctx.rerender();
       ctx.toast(units.length ? `Kitap eklendi · ${units.length} ünite 📚` : 'Kitap eklendi 📚');
       ctx.checkBadges();
       return;
     }
 
-    // --- kartı aç/kapat ---
+    // --- kitaba tıklandı: detayı sağdaki drawer'da aç ---
     const head = t.closest('[data-expand]');
     if (head && !t.closest('[data-toggle]')) {
-      const id = head.dataset.expand;
-      expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+      openDrawer(head.dataset.expand);
       ctx.rerender();
       return;
     }
@@ -259,7 +317,7 @@ export function bind(root, ctx) {
       if (!book) return;
       if (!confirm(`"${book.name}" silinsin mi? Üniteleri de gider.`)) return;
       store.removeBook(book.id);
-      expanded.delete(book.id);
+      if (openId === book.id) openId = null;   // silinen kitabın drawer'ı kapansın
       ctx.rerender();
       ctx.refreshHeader();
       ctx.toast('Kitap silindi');

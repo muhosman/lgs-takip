@@ -207,6 +207,9 @@ function renderTab(tab) {
   // Sadece innerHTML değiştirilseydi eski dinleyiciler elemanda kalır ve her
   // render'da bir yenisi eklenirdi: tek tık birden çok kez işlenirdi.
   // Bu yüzden kapsayıcıyı her seferinde sıfırdan oluşturup yerine koyuyoruz.
+  // Açık bir drawer varsa gövde kaydırması kilitli olabilir; görünüm değişiyor, bırak
+  document.body.classList.remove('drawer-open');
+
   const old = $('#view');
   const root = document.createElement('main');
   root.id = 'view';

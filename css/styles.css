@@ -492,9 +492,47 @@ textarea.ta{height:auto;padding:11px 13px;line-height:1.55;resize:vertical;min-h
 .book-name{font-family:'Baloo 2',sans-serif;font-size:15px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .book-sub{font-size:11.5px;color:var(--ink-soft);margin:2px 0 7px}
 .book-pct{font-family:'Baloo 2',sans-serif;font-size:14px;color:var(--i);flex-shrink:0}
-.book-caret{color:var(--ink-soft);font-size:13px;transition:transform .22s;flex-shrink:0}
-.book-caret.open{transform:rotate(180deg)}
-.book-body{padding:0 14px 14px;border-top:1px dashed var(--line);margin-top:2px;padding-top:11px}
+.book-caret{color:var(--ink-soft);font-size:18px;flex-shrink:0;transition:transform .18s}
+.book-head:hover .book-caret{transform:translateX(2px)}
+.book.active{border-color:var(--pink);box-shadow:0 0 0 2px var(--pink-soft),var(--shadow-sm)}
+
+/* ============ KITAP DETAY DRAWER'I ============ */
+.drawer-scrim{
+  position:fixed;inset:0;z-index:40;background:rgba(90,61,78,.34);
+  backdrop-filter:blur(2px);animation:scrim-in .22s ease;
+}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;z-index:41;
+  width:min(420px,92vw);display:flex;flex-direction:column;
+  background:var(--card);border-left:1.5px solid var(--line);
+  box-shadow:-14px 0 40px rgba(226,120,163,.22);
+}
+.drawer.opening{animation:drawer-in .26s cubic-bezier(.22,.7,.3,1)}
+@keyframes drawer-in{from{transform:translateX(100%)}to{transform:none}}
+@keyframes scrim-in{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .drawer.opening,.drawer-scrim{animation:none}
+}
+.drawer-head{
+  display:flex;align-items:center;gap:11px;flex-shrink:0;
+  padding:calc(14px + env(safe-area-inset-top)) 14px 12px;
+  background:linear-gradient(120deg,var(--c,var(--pink-soft))33,transparent);
+  border-bottom:1px solid var(--line);
+}
+.drawer-title{flex:1;min-width:0}
+.drawer-title .book-name{white-space:normal}
+.drawer-title .book-sub{margin:3px 0 0}
+.drawer-x{
+  flex-shrink:0;width:34px;height:34px;border-radius:12px;
+  background:var(--bg2);color:var(--ink-soft);font-size:15px;line-height:1;
+}
+.drawer-pbar{flex-shrink:0;border-radius:0;height:5px}
+.drawer-body{
+  flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  padding:13px 14px calc(16px + env(safe-area-inset-bottom));
+}
+body.drawer-open{overflow:hidden}
 
 /* üniteler */
 ul.units{list-style:none;margin:0 0 11px;padding:0}

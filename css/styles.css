@@ -18,6 +18,8 @@
   --shadow:0 10px 30px rgba(226,120,163,.16);
   --shadow-sm:0 4px 14px rgba(226,120,163,.13);
   --r:20px;
+  /* alt menü yüksekliği: 7px üst + 45px düğme + 7px alt (güvenli alan hariç) */
+  --tabbar-h:59px;
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -97,7 +99,9 @@ input,select{font-family:inherit;font-weight:700;color:inherit}
 .app{
   position:relative;z-index:1;width:100%;
   /* ekran genişledikçe kenar boşluğu az miktarda artar, içerik tüm alanı kullanır */
-  padding:0 clamp(10px, 1.6vw, 26px) 108px;
+  padding:0 clamp(10px, 1.6vw, 26px);
+  /* Menü her ekranda altta sabit: içerik menünün biraz üstünde bitsin */
+  padding-bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px);
 }
 .topbar{padding:18px 4px 12px;position:sticky;top:0;z-index:20;
   background:linear-gradient(180deg,rgba(255,243,247,.97) 70%,rgba(255,243,247,0));
@@ -350,10 +354,6 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
 
 @media (min-width:760px){
-  .app{padding-bottom:24px;padding-top:0}
-  .tabbar{position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1.5px solid var(--line);
-    border-radius:0 0 20px 20px;box-shadow:0 5px 22px rgba(226,120,163,.12);margin-bottom:12px;
-    max-width:none}
   .topbar{position:static;background:none;backdrop-filter:none}
   .subj-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
   .subj{margin-bottom:0}
@@ -416,8 +416,8 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   /* iOS odaklanınca sayfayı yakınlaştırmasın (16px altı input'ta zoom yapar) */
   .inp,.big-input,.dy-grid input,table.grid input{font-size:16px}
 
-  /* sekmeler 5 tane -> daralt */
   /* 6 sekme dar ekrana sığsın */
+  :root{--tabbar-h:51px}   /* dar ekranda menü biraz kısalıyor */
   .tabbar{padding:6px 2px calc(6px + env(safe-area-inset-bottom))}
   .tabbar button{padding:5px 1px;gap:1px}
   .tabbar button span{font-size:17.5px}

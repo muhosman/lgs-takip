@@ -9,13 +9,17 @@ export function render() {
   const kalan = daysBetween(new Date(), exam);
 
   return `
+  <div class="grid-cards">
   <div class="card">
     <div class="card-title">🎀 Kişisel</div>
     <label class="lbl" for="setName">Adın</label>
     <input id="setName" class="inp" type="text" maxlength="18" value="${esc(s.name)}" placeholder="Adın">
     <div style="height:11px"></div>
     <label class="lbl" for="setGoal">Günlük soru hedefin</label>
-    <input id="setGoal" class="inp" type="number" inputmode="numeric" min="0" max="999" value="${s.dailyGoal}">
+    <input id="setGoal" class="inp" type="number" inputmode="numeric" min="0" max="999" value="${store.goalFor(todayKey())}">
+    <p class="hint" style="text-align:left;margin:8px 0 0">
+      Değişiklik <b>bugünden itibaren</b> geçerli olur; geçmiş günler kendi hedefiyle kalır 🎯
+    </p>
   </div>
 
   <div class="card">
@@ -69,6 +73,7 @@ export function render() {
     <button type="button" id="lockBtn" class="btn-ghost">Kilitle</button>
   </div>
 
+  </div>
   <p class="hint">Sevgiyle yapıldı 💗 · v1.0</p>`;
 }
 
@@ -84,8 +89,8 @@ export function bind(root, ctx) {
   $('#setGoal').addEventListener('change', e => {
     const v = clampInt(e.target.value, 0, 999);
     e.target.value = v;
-    store.setMeta({ dailyGoal: v });
-    ctx.toast('Hedef güncellendi 🎯');
+    store.setGoal(v);                 // bugünden itibaren geçerli
+    ctx.toast('Hedef bugünden itibaren güncellendi 🎯');
   });
 
   $('#setExam').addEventListener('change', e => {

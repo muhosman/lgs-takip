@@ -1,6 +1,6 @@
 // XP, seviye, seri ve rozet hesapları
 import { SUBJECTS, LEVEL_TITLES, BADGES, xpForLevel, XP_PER_OWN, XP_PER_TAUGHT } from './data.js';
-import { keyOf, dateOf, addDays, todayKey, netOf } from './utils.js';
+import { keyOf, dateOf, addDays, todayKey, netOf, goalOf, weekStart, estimateScore } from './utils.js';
 
 /**
  * Bir günün toplamları.
@@ -58,16 +58,74 @@ export function bestStreak(days) {
   return best;
 }
 
+/**
+ * Hafta / ay toplamları ve hedef serisi — sıralı bir geçiş ister, bu yüzden
+ * ana döngüden ayrı. Sene boyu kazanılan rozetlerin dayandığı ölçütler.
+ */
+function periodStats(state, days) {
+  const keys = Object.keys(days).sort();
+  const byWeek = new Map(), byMonth = new Map();
+  let bestGoalStreak = 0, run = 0, prevKey = null;
+
+  for (const key of keys) {
+    const t = dayTotals(days[key]);
+    const d = dateOf(key);
+
+    if (t.q > 0) {
+      const wk = keyOf(weekStart(d));
+      const mo = key.slice(0, 7);
+      byWeek.set(wk, (byWeek.get(wk) || 0) + t.q);
+      byMonth.set(mo, (byMonth.get(mo) || 0) + t.q);
+    }
+
+    // Üst üste hedef tutturulan gün sayısı (arada boş gün kalırsa seri kopar)
+    const goal = goalOf(state, key);
+    const hit = goal > 0 && t.q >= goal;
+    const consecutive = prevKey !== null && Math.round((d - dateOf(prevKey)) / 86400000) === 1;
+    run = hit ? (consecutive ? run + 1 : 1) : 0;
+    if (run > bestGoalStreak) bestGoalStreak = run;
+    prevKey = key;
+  }
+
+  const weeks = [...byWeek.values()], months = [...byMonth.values()];
+  return {
+    bestWeek: weeks.length ? Math.max(...weeks) : 0,
+    bestMonth: months.length ? Math.max(...months) : 0,
+    activeWeeks: weeks.length,
+    activeMonths: months.length,
+    goalStreak: bestGoalStreak,
+  };
+}
+
+/** Deneme rekorları — puan ve net */
+function examStats(exams) {
+  let bestScore = 0, bestNet = 0;
+  for (const e of exams) {
+    const per = e.subjects || {};
+    let net = 0;
+    for (const s of SUBJECTS) {
+      const r = per[s.key];
+      if (r) net += netOf(r.d, r.y);
+    }
+    if (net > bestNet) bestNet = net;
+    const score = estimateScore(per);
+    if (score > bestScore) bestScore = score;
+  }
+  return { bestScore, bestNet };
+}
+
 /** Tüm zamanların özeti — rozet testleri ve istatistik ekranı bunu kullanır */
 export function summarize(state) {
   const days = state.days;
   const per = {};
   let totalQ = 0, totalOwn = 0, totalD = 0, totalY = 0, totalB = 0, totalTaught = 0, totalXp = 0;
   let bestDay = 0, bestAccuracy = 0, goalDays = 0, allSixDay = false, activeDays = 0;
+  let bestWeekendDay = 0, sixSubjectDays = 0;
 
   for (const key of Object.keys(days)) {
     const t = dayTotals(days[key]);
     if (t.q > 0) activeDays++;
+    if (t.q > bestWeekendDay && [0, 6].includes(dateOf(key).getDay())) bestWeekendDay = t.q;
     totalQ += t.q; totalOwn += t.own; totalD += t.d; totalY += t.y; totalB += t.b;
     totalTaught += t.ct; totalXp += t.xp;
     if (t.q > bestDay) bestDay = t.q;
@@ -75,14 +133,18 @@ export function summarize(state) {
       const acc = (t.d / t.own) * 100;
       if (acc > bestAccuracy) bestAccuracy = acc;
     }
-    if (t.q >= state.dailyGoal && state.dailyGoal > 0) goalDays++;
-    if (t.subjects >= 6) allSixDay = true;
+    const goal = goalOf(state, key);   // o gün yürürlükte olan hedef
+    if (goal > 0 && t.q >= goal) goalDays++;
+    if (t.subjects >= 6) { allSixDay = true; sixSubjectDays++; }
     for (const s of SUBJECTS) {
       const r = days[key][s.key];
       if (!r) continue;
       per[s.key] = (per[s.key] || 0) + (r.d||0) + (r.y||0) + (r.b||0) + (r.ct||0);
     }
   }
+
+  const period = periodStats(state, days);
+  const exam = examStats(state.exams || []);
 
   const books = state.books || [];
   let unitsTotal = 0, unitsDone = 0, booksFinished = 0;
@@ -97,6 +159,10 @@ export function summarize(state) {
     totalQ, totalOwn, totalD, totalY, totalB, totalTaught, xp: totalXp,
     bookCount: books.length, unitsTotal, unitsDone, booksFinished,
     activeDays, bestDay, bestAccuracy, goalDays, allSixDay,
+    bestWeekendDay, sixSubjectDays,
+    ...period,                          // bestWeek, bestMonth, activeWeeks, activeMonths, goalStreak
+    bestExamScore: exam.bestScore,
+    bestExamNet: exam.bestNet,
     perSubject: per,
     examCount: state.exams.length,
     streak: currentStreak(days),

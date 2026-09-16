@@ -87,7 +87,7 @@ export function render() {
       ${line(trend, { min: 100, max: 500, height: 165 })}
     </div>
     <div class="sec-title">Deneme geçmişi</div>
-    ${[...exams].reverse().map(examCard).join('')}
+    <div class="grid-cards">${[...exams].reverse().map(examCard).join('')}</div>
   ` : `<div class="card"><div class="empty"><div>🏆</div>
       Henüz deneme girmedin.<br>İlk denemeni ekle, gelişimini grafikte görelim! 📈</div></div>`}
   `;

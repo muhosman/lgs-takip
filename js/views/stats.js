@@ -48,17 +48,20 @@ export function render() {
 
   const earned = new Set(earnedBadges(st));
 
-  // Rozetler soru verisi olmasa da görünmeli: kitap rozetleri buradan kazanılıyor.
+  // Rozetlerin tamamı artık ayrı sekmede; burada sadece kısayol duruyor.
+  // Soru verisi olmasa da görünmeli: kitap rozetleri veri olmadan da kazanılıyor.
+  const lastFew = BADGES.filter(b => earned.has(b.id)).slice(-6);
   const badgeSection = `
-  <div class="sec-title">Rozetlerin (${earned.size}/${BADGES.length})</div>
-  <div class="badges">
-    ${BADGES.map(b => `
-      <div class="badge ${earned.has(b.id) ? '' : 'locked'}">
-        <div class="badge-ico">${earned.has(b.id) ? b.ico : '🔒'}</div>
-        <div class="badge-name">${esc(b.name)}</div>
-        <div class="badge-desc">${esc(b.desc)}</div>
-      </div>`).join('')}
-  </div>`;
+  <button type="button" class="card badge-link" data-goto="badges">
+    <div class="badge-link-head">
+      <span class="badge-link-title">🏅 Rozetlerin</span>
+      <span class="badge-link-count">${earned.size}/${BADGES.length} →</span>
+    </div>
+    <div class="badge-link-icos">${
+      lastFew.length ? lastFew.map(b => `<span>${b.ico}</span>`).join('')
+                     : '<span class="badge-link-empty">Henüz rozet yok — ilk soruyu çöz! 🌱</span>'
+    }</div>
+  </button>`;
 
   if (!hasData) {
     return `<div class="card"><div class="empty"><div>📊</div>
@@ -81,6 +84,7 @@ export function render() {
     <p>Bu derste doğruluk oranın <b>%${Math.round(weak.rate)}</b>. Biraz daha soru çözersen ortalaman ciddi şekilde yükselir 💪</p>
   </div>` : ''}
 
+  <div class="grid-cards">
   <div class="card">
     <div class="card-title">📈 Son 14 gün</div>
     ${bars(trend, { height: 155 })}
@@ -129,8 +133,14 @@ export function render() {
       Çözdürdüğün her soru hem soru sayına eklenir hem de iki kat puan kazandırır 🧑‍🏫
     </p>
   </div>
+  </div>
 
   ${badgeSection}`;
 }
 
-export function bind() { /* etkileşim yok */ }
+export function bind(root, ctx) {
+  root.addEventListener('click', e => {
+    const b = e.target.closest('button[data-goto]');
+    if (b) ctx.go(b.dataset.goto);
+  });
+}

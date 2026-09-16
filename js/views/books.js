@@ -140,7 +140,7 @@ export function render() {
     ${addForm()}
     ${groups.map(g => `
       <div class="sec-title">${g.s.emoji} ${esc(g.s.name)}</div>
-      ${g.list.map(bookCard).join('')}
+      <div class="grid-cards">${g.list.map(bookCard).join('')}</div>
     `).join('')}`;
 }
 

@@ -9,11 +9,12 @@ import { confetti } from './confetti.js';
 import * as today from './views/today.js';
 import * as week from './views/week.js';
 import * as books from './views/books.js';
+import * as badges from './views/badges.js';
 import * as stats from './views/stats.js';
 import * as exams from './views/exams.js';
 import * as settings from './views/settings.js';
 
-const VIEWS = { today, week, books, stats, exams, settings };
+const VIEWS = { today, week, books, badges, stats, exams, settings };
 const SESSION_KEY = 'lgs-unlocked';
 
 const WELCOME_QUOTES = [
@@ -188,6 +189,7 @@ function initSyncWatchers() {
 const ctx = {
   toast, refreshHeader, checkBadges, lock,
   rerender: () => renderTab(currentTab),
+  go: tab => { if (VIEWS[tab]) renderTab(tab); },   // görünümler arası geçiş (ör. İstatistik → Rozetler)
   syncNow: async () => {
     if (!sync.enabled()) { toast('Bulut eşitleme kapalı'); return; }
     toast('Eşitleniyor…');

@@ -94,7 +94,11 @@ input,select{font-family:inherit;font-weight:700;color:inherit}
 .big-input:focus{border-color:var(--pink)}
 
 /* ============ ÜST BAR ============ */
-.app{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:0 14px 108px}
+.app{
+  position:relative;z-index:1;width:100%;
+  /* ekran genişledikçe kenar boşluğu az miktarda artar, içerik tüm alanı kullanır */
+  padding:0 clamp(10px, 1.6vw, 26px) 108px;
+}
 .topbar{padding:18px 4px 12px;position:sticky;top:0;z-index:20;
   background:linear-gradient(180deg,rgba(255,243,247,.97) 70%,rgba(255,243,247,0));
   backdrop-filter:blur(6px);
@@ -149,19 +153,22 @@ input,select{font-family:inherit;font-weight:700;color:inherit}
 .subj-name{font-family:'Baloo 2',sans-serif;font-size:16px;flex:1;letter-spacing:.3px}
 .subj-net{background:rgba(255,255,255,.82);border-radius:12px;padding:4px 10px;font-size:12px;white-space:nowrap}
 .subj-net b{font-family:'Baloo 2',sans-serif;font-size:14px}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.steps.extra{grid-template-columns:1fr;margin-top:8px}
-.step{background:rgba(255,255,255,.85);border-radius:14px;padding:7px 6px;text-align:center}
+.steps{display:flex;flex-wrap:wrap;gap:8px}
+.steps.extra{margin-top:8px}
+/* Esneme sayesinde kart daraldıkça sayaçlar alta iner, taşma olmaz;
+   tek başına kalan sayaç satırın tamamını doldurur. */
+.step{flex:1 1 104px;min-width:0;background:rgba(255,255,255,.85);border-radius:14px;padding:7px 6px;text-align:center}
 .step-lbl{font-size:10.5px;color:var(--ink-soft);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.step-row{display:flex;align-items:center;gap:3px;justify-content:center}
+.step-row{display:flex;align-items:center;gap:4px;justify-content:center}
 .step-row button{
   width:27px;height:27px;border-radius:9px;background:#FFF0F5;color:var(--pink-deep);
-  font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.1s
+  font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;
+  flex:0 0 auto;transition:.1s
 }
 .step-row button:active{transform:scale(.86)}
 .step-row input{
-  width:44px;height:28px;border:0;background:transparent;text-align:center;
-  font-family:'Baloo 2',sans-serif;font-size:19px;outline:none;padding:0;
+  flex:1 1 34px;min-width:0;max-width:60px;height:28px;border:0;background:transparent;
+  text-align:center;font-family:'Baloo 2',sans-serif;font-size:19px;outline:none;padding:0;
   -moz-appearance:textfield;
 }
 .step-row input::-webkit-outer-spin-button,.step-row input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -174,6 +181,28 @@ input,select{font-family:inherit;font-weight:700;color:inherit}
 table.grid{border-collapse:collapse;width:100%;min-width:720px;font-size:12.5px}
 table.grid th{background:var(--pink);color:#fff;padding:9px 6px;font-family:'Baloo 2',sans-serif;font-size:12px;font-weight:700;position:sticky;top:0;z-index:2;white-space:nowrap}
 table.grid th.today-col{background:var(--pink-deep)}
+
+/* hedef / ilerleme şeridi — gün başlıklarının hemen altı */
+table.grid thead tr:first-child th{top:0}
+table.grid tr.goal-row th{top:var(--wk-head-h,34px)}
+table.grid th.goal-h{
+  background:var(--pink-deep);padding:4px 5px 5px;
+  font-family:'Baloo 2',sans-serif;font-weight:700;
+  box-shadow:inset 0 -2px 0 rgba(255,255,255,.22);
+}
+table.grid th.goal-h.today-col{background:#C33F74}
+table.grid th.goal-h.week-goal{background:#E0913F}
+table.grid th.goal-h.hit{background:var(--ok)}
+.goal-n{display:block;font-size:11.5px;line-height:1.1;letter-spacing:.2px}
+.goal-n i{font-style:normal;opacity:.72;font-size:10px}
+.goal-bar{
+  display:block;height:4px;margin-top:3px;border-radius:99px;
+  background:rgba(255,255,255,.3);overflow:hidden;
+}
+.goal-bar > i{
+  display:block;height:100%;border-radius:99px;background:#fff;
+  transition:width .25s ease;
+}
 table.grid td{border:1px solid #FCE6EE;padding:0;text-align:center}
 td.subj-cell{font-family:'Baloo 2',sans-serif;font-size:12.5px;padding:6px;width:92px;line-height:1.2}
 td.metric{text-align:left;padding:5px 8px;white-space:nowrap;background:#FFFBFD;font-size:11.5px;width:132px}
@@ -208,6 +237,41 @@ tr.today-row td{background:#FFFAF0}
 .badge-ico{font-size:27px;line-height:1}
 .badge-name{font-family:'Baloo 2',sans-serif;font-size:11.5px;margin-top:5px;line-height:1.2}
 .badge-desc{font-size:10px;color:var(--ink-soft);margin-top:2px;line-height:1.25}
+.badge.earned{border-color:#FFD9A8;background:linear-gradient(170deg,#FFFDF8,#FFF6E9)}
+
+/* kilitli rozetin ilerlemesi */
+.badge-prog{margin-top:7px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.badge-prog-bar{display:block;width:100%;height:4px;border-radius:99px;background:var(--line);overflow:hidden}
+.badge-prog-bar > i{display:block;height:100%;border-radius:99px;background:var(--pink);transition:width .3s ease}
+.badge-prog-txt{font-family:'Baloo 2',sans-serif;font-size:9.5px;color:var(--ink-soft);line-height:1}
+
+/* ============ ROZETLER SAYFASI ============ */
+.sec-count{float:right;font-size:12.5px;letter-spacing:0;text-transform:none;opacity:.8}
+.badge-summary{text-align:center}
+.badge-sum-head{display:flex;flex-direction:column;align-items:center;gap:1px}
+.badge-sum-num{font-family:'Baloo 2',sans-serif;font-size:34px;line-height:1;color:var(--pink-deep)}
+.badge-sum-num i{font-style:normal;font-size:17px;color:var(--ink-soft)}
+.badge-sum-lbl{font-size:12px;color:var(--ink-soft)}
+.badge-sum-bar{display:block;height:9px;border-radius:99px;background:var(--pink-soft);overflow:hidden;margin:11px 0 0}
+.badge-sum-bar > i{
+  display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--pink),var(--sun));transition:width .4s ease;
+}
+.badge-next{margin-top:14px;padding-top:12px;border-top:1.5px dashed var(--line);text-align:left}
+.badge-next-title{font-family:'Baloo 2',sans-serif;font-size:12px;color:var(--ink-soft);margin-bottom:7px}
+.badge-next-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px}
+.badge-next-ico{font-size:17px;line-height:1}
+.badge-next-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge-next-num{font-family:'Baloo 2',sans-serif;color:var(--pink-deep);font-size:12.5px}
+
+/* İstatistik ekranındaki rozet kısayolu */
+.badge-link{display:block;width:100%;text-align:left;cursor:pointer;transition:.15s}
+.badge-link:active{transform:scale(.99)}
+.badge-link-head{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.badge-link-title{font-family:'Baloo 2',sans-serif;font-size:15px}
+.badge-link-count{font-family:'Baloo 2',sans-serif;font-size:13.5px;color:var(--pink-deep)}
+.badge-link-icos{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;font-size:21px;line-height:1}
+.badge-link-empty{font-size:12px;font-weight:700;color:var(--ink-soft)}
 
 /* ============ DENEMELER ============ */
 .exam-form{display:grid;gap:9px}
@@ -267,8 +331,9 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
 }
 .tabbar button{
   background:none;display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:5px 8px;border-radius:13px;color:var(--ink-soft);flex:1;transition:.15s;
+  padding:5px 4px;border-radius:13px;color:var(--ink-soft);flex:1;min-width:0;transition:.15s;
 }
+.tabbar button i{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tabbar button span{font-size:20px;line-height:1;transition:.2s;filter:grayscale(.65) opacity(.75)}
 .tabbar button i{font-style:normal;font-size:10.5px;font-weight:700}
 .tabbar button.on{color:var(--pink-deep);background:#FFF0F6}
@@ -289,9 +354,10 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
 @media (min-width:760px){
   .app{padding-bottom:24px;padding-top:0}
   .tabbar{position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1.5px solid var(--line);
-    border-radius:0 0 20px 20px;box-shadow:0 5px 22px rgba(226,120,163,.12);margin-bottom:12px}
+    border-radius:0 0 20px 20px;box-shadow:0 5px 22px rgba(226,120,163,.12);margin-bottom:12px;
+    max-width:none}
   .topbar{position:static;background:none;backdrop-filter:none}
-  .subj-list{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .subj-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
   .subj{margin-bottom:0}
 }
 
@@ -342,11 +408,9 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   .goal-head{font-size:16px}
   .goal-msg{font-size:12.5px}
 
-  /* ders kartları: 3 sütun dar ekranda taşıyordu -> 2 sütun */
-  .steps{grid-template-columns:repeat(2,1fr)}
-  .steps > .step:nth-child(3){grid-column:1 / -1}
+  /* dar ekranda sayaçlar biraz büyür, esnek düzen sığdırmayı hallediyor */
   .step-lbl{font-size:11px}
-  .step-row input{width:52px;font-size:17px}
+  .step-row input{font-size:17px}
   .step-row button{width:29px;height:29px}
   .subj-net{font-size:11px;padding:4px 8px}
   .subj-name{font-size:15px}
@@ -355,9 +419,11 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   .inp,.big-input,.dy-grid input,table.grid input{font-size:16px}
 
   /* sekmeler 5 tane -> daralt */
-  .tabbar button{padding:5px 2px}
-  .tabbar button span{font-size:19px}
-  .tabbar button i{font-size:9.5px}
+  /* 6 sekme dar ekrana sığsın */
+  .tabbar{padding:6px 2px calc(6px + env(safe-area-inset-bottom))}
+  .tabbar button{padding:5px 1px;gap:1px}
+  .tabbar button span{font-size:17.5px}
+  .tabbar button i{font-size:8.5px;letter-spacing:-.2px}
 }
 
 @media (max-width:600px){
@@ -366,14 +432,19 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
   .d-short{display:block;line-height:1.25}
   table.grid{min-width:560px;font-size:11.5px}
   table.grid th{padding:7px 3px;font-size:10px}
+  table.grid th.goal-h{padding:3px 3px 4px}
+  .goal-n{font-size:10px}
+  .goal-n i{font-size:9px}
   td.subj-cell{width:58px;font-size:10px;padding:4px 2px}
   td.metric{width:96px;font-size:10px;padding:4px 5px}
   table.grid input{height:32px}
 
   td.subj-cell{position:sticky;left:0;z-index:1}
   td.metric{position:sticky;left:58px;z-index:1}
-  table.grid th:nth-child(1){position:sticky;left:0;z-index:3}
-  table.grid th:nth-child(2){position:sticky;left:58px;z-index:3}
+  /* yalnızca ilk başlık satırındaki DERS/DURUM sütunları sabitlenir —
+     hedef satırının ilk hücresi bir gün hücresidir, kaymalı */
+  table.grid thead tr:first-child th:nth-child(1){position:sticky;left:0;z-index:3}
+  table.grid thead tr:first-child th:nth-child(2){position:sticky;left:58px;z-index:3}
   td.subj-cell::after,td.metric::after{
     content:'';position:absolute;top:0;bottom:0;right:-1px;width:1px;background:#FCE6EE;
   }
@@ -381,8 +452,6 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
 }
 
 @media (max-width:360px){
-  .app{padding-left:10px;padding-right:10px}
-  .step-row input{width:44px}
   .step-row button{width:27px;height:27px}
   .stat-grid{grid-template-columns:1fr 1fr}
   .badges{grid-template-columns:repeat(3,1fr)}
@@ -468,3 +537,49 @@ ul.units{list-style:none;margin:0 0 11px;padding:0}
 /* canlı bağlantı göstergesi */
 .chip-sync.is-live{border-color:#9BE3C4;background:#F2FFF9}
 .chip-sync b{font-family:'Baloo 2',sans-serif;font-size:12px;margin-left:2px;color:var(--ok)}
+
+/* ============ TAM GENİŞLİK / ESNEK IZGARA ============ */
+/* Kart grupları: yer varken yan yana, darken alt alta geçer */
+/* auto-fill: tek kart kaldığında satırın tamamına yayılıp seyrelmesin,
+   bir sütun genişliğinde kalsın */
+.grid-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+  gap:13px;
+  align-items:start;
+}
+.grid-cards > .card,
+.grid-cards > .book,
+.grid-cards > .exam-item{margin-bottom:0}
+
+/* Özet kutuları da boşluğu doldursun */
+.stat-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.badges{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+
+/* Geniş ekranda çizelge tüm alanı kullansın */
+@media (min-width:760px){
+  table.grid{min-width:0}
+  .goal-card .ring{width:120px}
+}
+
+/* Çok geniş ekranlarda satırlar aşırı uzamasın diye kart içi içerik hizası */
+@media (min-width:1200px){
+  .grid-cards{gap:15px}
+  .weak{padding:16px 18px}
+  .goal-card{padding:20px}
+  .goal-head{font-size:20px}
+}
+
+/* Ultra geniş: hedef kartı ile ders kartları yan yana akmaya devam etsin */
+@media (min-width:1600px){
+  .subj-list{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+  .badges{grid-template-columns:repeat(auto-fill,minmax(135px,1fr))}
+}
+
+/* Geniş ekranda tam genişliğe uzayan tek düğmeler orantısız görünmesin */
+@media (min-width:760px){
+  #openForm,
+  .btn-row > .btn-ghost,
+  .btn-row > .btn-danger{max-width:420px}
+  #openForm{width:100%}
+}

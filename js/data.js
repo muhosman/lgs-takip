@@ -33,6 +33,31 @@ export const LEVEL_TITLES = [
 // XP eşiği: n. seviyeye ulaşmak için 20*n*(n-1) XP (1 soru = 1 XP)
 export const xpForLevel = n => 20 * n * (n - 1);
 
+/**
+ * İngilizce kelime türleri. Etiket bilerek iki dilli: terimin İngilizcesi de
+ * gördükçe öğrenilsin diye her yerde "VERB (fiil)" biçiminde gösterilir.
+ */
+export const WORD_TYPES = [
+  { key:'noun',    en:'NOUN',         tr:'isim',      emoji:'📐', color:'#A9E4DE' },
+  { key:'verb',    en:'VERB',         tr:'fiil',      emoji:'🏃', color:'#F7B7B6' },
+  { key:'adj',     en:'ADJECTIVE',    tr:'sıfat',     emoji:'🎨', color:'#FBE3A6' },
+  { key:'adv',     en:'ADVERB',       tr:'zarf',      emoji:'⚡', color:'#C6BAF5' },
+  { key:'phrasal', en:'PHRASAL VERB', tr:'öbek fiil', emoji:'🔗', color:'#A8E9C6' },
+  { key:'phrase',  en:'PHRASE',       tr:'kalıp',     emoji:'💬', color:'#F7B9D2' },
+  { key:'other',   en:'OTHER',        tr:'diğer',     emoji:'✨', color:'#E3DCF7' },
+];
+
+export const WORD_TYPE_MAP = Object.fromEntries(WORD_TYPES.map(t => [t.key, t]));
+
+/** "VERB (fiil)" — tür etiketinin tek doğru yazımı */
+export const typeLabel = key => {
+  const t = WORD_TYPE_MAP[key] || WORD_TYPE_MAP.other;
+  return `${t.en} (${t.tr})`;
+};
+
+/** Bu kadar doğru bilince kelime "öğrenildi" sayılır */
+export const LEARNED_AT = 5;
+
 // Rozet grupları — rozetler ekranında bu sırayla başlıklara ayrılır
 export const BADGE_GROUPS = [
   { key:'soru',   label:'Soru sayısı',   emoji:'✏️' },

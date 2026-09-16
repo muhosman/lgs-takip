@@ -1,5 +1,5 @@
 // localStorage tabanlı tek kaynaklı veri deposu
-import { SUBJECTS } from './data.js';
+import { SUBJECTS, WORD_TYPE_MAP } from './data.js';
 import { clampInt, goalListOf, goalOf, todayKey } from './utils.js';
 
 const KEY = 'lgs-takip-v1';
@@ -18,6 +18,8 @@ const defaults = () => ({
   deletedExams: [],   // silinen denemeler senkronda geri gelmesin
   books: [],          // { id, subject, name, units:[{id,name,done,doneAt}], _t }
   deletedBooks: [],
+  words: [],          // { id, en, tr, type, ticks, wrong, _t } — İngilizce kelimeler
+  deletedWords: [],
   seenBadges: [],
   updatedAt: 0,       // ayarların son değişme zamanı (birleştirmede kullanılır)
   resetAt: 0,         // "verileri sıfırla" anı; bundan eskisi birleştirmede düşer
@@ -235,6 +237,76 @@ export function toggleUnit(bookId, unitId) {
   return { done, total, justFinished: total > 0 && done === total && u.done };
 }
 
+/* ---------------- İngilizce kelimeler ---------------- */
+
+const cleanWord = s => String(s || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+
+/** Aynı kelimeyi iki kez eklemeyelim: İngilizcesi büyük/küçük harf duyarsız eşleşir */
+const wordKey = en => cleanWord(en).toLocaleLowerCase('en');
+
+export const findWord = id => state.words.find(w => w.id === id) || null;
+
+/**
+ * Kelimeleri toplu ekler. Zaten kayıtlı olan (aynı İngilizce) atlanır.
+ * Dönen sayılar ekleme ekranındaki geri bildirim için.
+ */
+export function addWords(list) {
+  const seen = new Set(state.words.map(w => wordKey(w.en)));
+  let added = 0, skipped = 0;
+
+  for (const item of list) {
+    const en = cleanWord(item.en);
+    const tr = cleanWord(item.tr);
+    if (!en || !tr) { skipped++; continue; }
+    const k = wordKey(en);
+    if (seen.has(k)) { skipped++; continue; }
+    seen.add(k);
+    state.words.push({
+      id: uid('w'), en, tr,
+      type: WORD_TYPE_MAP[item.type] ? item.type : 'other',
+      ticks: 0, wrong: 0, _t: Date.now(),
+    });
+    added++;
+  }
+
+  if (added) { state.updatedAt = Date.now(); save(); }
+  return { added, skipped };
+}
+
+export function updateWord(id, patch) {
+  const w = findWord(id);
+  if (!w) return null;
+  if (patch.en !== undefined) w.en = cleanWord(patch.en) || w.en;
+  if (patch.tr !== undefined) w.tr = cleanWord(patch.tr) || w.tr;
+  if (patch.type !== undefined && WORD_TYPE_MAP[patch.type]) w.type = patch.type;
+  w._t = Date.now();
+  state.updatedAt = Date.now();
+  save();
+  return w;
+}
+
+export function removeWord(id) {
+  state.words = state.words.filter(w => w.id !== id);
+  if (!state.deletedWords.includes(id)) state.deletedWords.push(id);
+  state.updatedAt = Date.now();
+  save();
+}
+
+/**
+ * Oyun sonucunu kelimeye işler: doğru +1 tick, yanlış −1 (sıfırın altına inmez).
+ * Öğrenilmiş bir kelime yanlış bilinirse kendiliğinden tekrar sıraya girer.
+ */
+export function scoreWord(id, correct) {
+  const w = findWord(id);
+  if (!w) return null;
+  w.ticks = Math.max(0, (w.ticks || 0) + (correct ? 1 : -1));
+  if (!correct) w.wrong = (w.wrong || 0) + 1;
+  w._t = Date.now();
+  state.updatedAt = Date.now();
+  save();
+  return w;
+}
+
 export function markBadgesSeen(ids) {
   const set = new Set(state.seenBadges);
   ids.forEach(i => set.add(i));
@@ -263,8 +335,9 @@ export function resetAll() {
   for (const k of Object.keys(state.days)) days[k] = { _t: now };
   const deletedExams = [...new Set([...state.deletedExams, ...state.exams.map(e => e.id)])];
   const deletedBooks = [...new Set([...state.deletedBooks, ...state.books.map(b => b.id)])];
+  const deletedWords = [...new Set([...state.deletedWords, ...state.words.map(w => w.id)])];
 
-  state = { ...defaults(), ...keep, days, deletedExams, deletedBooks, resetAt: now, updatedAt: now };
+  state = { ...defaults(), ...keep, days, deletedExams, deletedBooks, deletedWords, resetAt: now, updatedAt: now };
   save();
 }
 
@@ -310,6 +383,17 @@ export function mergeDocs(a, b) {
   out.books = [...books.values()].filter(bk => !deletedB.has(bk.id));
   out.deletedBooks = [...deletedB];
 
+  // Kelimeler kitaplarla aynı kalıp: id'ye göre birleşir, daha yeni damga kazanır.
+  // (Aynı kelime iki cihazda da oynanmışsa tick'lerden biri diğerini ezer.)
+  const deletedW = new Set([...(a.deletedWords || []), ...(b.deletedWords || [])]);
+  const words = new Map();
+  for (const w of [...(a.words || []), ...(b.words || [])]) {
+    const cur = words.get(w.id);
+    if (!cur || (w._t || 0) >= (cur._t || 0)) words.set(w.id, w);
+  }
+  out.words = [...words.values()].filter(w => !deletedW.has(w.id));
+  out.deletedWords = [...deletedW];
+
   // Hedef geçmişi tarihe göre birleşir; aynı günü iki cihaz da değiştirdiyse yenisi kazanır.
   // (Ayarlarla birlikte toptan alınsaydı eski cihazın belgesi tüm geçmişi silebilirdi.)
   const goals = new Map();
@@ -333,6 +417,7 @@ export function mergeDocs(a, b) {
     }
     out.exams = out.exams.filter(e => (e._t || 0) >= resetAt);
     out.books = out.books.filter(bk => (bk._t || 0) >= resetAt);
+    out.words = out.words.filter(w => (w._t || 0) >= resetAt);
   }
   return out;
 }

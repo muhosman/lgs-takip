@@ -618,3 +618,120 @@ ul.units{list-style:none;margin:0 0 11px;padding:0}
   .btn-row > .btn-danger{max-width:420px}
   #openForm{width:100%}
 }
+
+/* ============ İNGİLİZCE: ALT SEKMELER ============ */
+.subtabs{display:flex;gap:7px;margin-bottom:13px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.subtab{
+  flex:1;white-space:nowrap;background:var(--card);border:1.5px solid var(--line);
+  border-radius:14px;padding:9px 11px;font-size:13px;color:var(--ink-soft);
+  box-shadow:var(--shadow-sm);transition:.15s;
+}
+.subtab.on{background:var(--pink);border-color:var(--pink);color:#fff}
+
+/* ============ İNGİLİZCE: KELİME LİSTESİ ============ */
+.hint-inline{font-size:11px;color:var(--ink-soft);font-weight:600}
+ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
+  border:1.5px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+.wrow{display:flex;align-items:center;gap:9px;padding:9px 13px;border-bottom:1px dashed #FBE9F0}
+.wrow:last-child{border-bottom:0}
+.wrow.learned{background:linear-gradient(90deg,#F4FFFA,transparent)}
+.w-en{font-family:'Baloo 2',sans-serif;font-size:14.5px;flex:1 1 34%;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w-tr{flex:1 1 34%;min-width:0;font-size:13px;color:var(--ink-soft);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w-ticks{flex-shrink:0;font-size:11.5px;color:var(--ok);letter-spacing:1px;white-space:nowrap}
+.wrow.editing .uedit{flex:1 1 40%}
+
+/* ============ İNGİLİZCE: OYUNLAR ============ */
+.pill-row{display:flex;flex-wrap:wrap;gap:7px}
+.pill{
+  background:var(--bg2);border:1.5px solid var(--line);border-radius:12px;
+  padding:8px 14px;font-size:13px;color:var(--ink-soft);transition:.15s;
+}
+.pill.on{background:var(--pink);border-color:var(--pink);color:#fff}
+
+.game-pick{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;margin-bottom:0}
+.game-pick.locked{opacity:.55;cursor:default}
+.game-pick-ico{font-size:28px;flex-shrink:0;line-height:1}
+.game-pick-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.game-pick-name{font-family:'Baloo 2',sans-serif;font-size:15.5px}
+.game-pick-desc{font-size:11.5px;color:var(--ink-soft);line-height:1.3}
+.game-pick-go{font-size:17px;color:var(--pink-deep);flex-shrink:0}
+
+/* oyun içi üst şerit */
+.game-bar{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.game-quit{flex-shrink:0;padding:8px 13px}
+.game-progress{flex:1}
+.game-score{font-family:'Baloo 2',sans-serif;font-size:12.5px;white-space:nowrap;flex-shrink:0}
+
+.game-card{text-align:center}
+.game-type{font-size:10.5px;letter-spacing:.8px;color:var(--ink-soft);margin-bottom:9px}
+.game-prompt{font-family:'Baloo 2',sans-serif;font-size:29px;color:var(--pink-deep);line-height:1.2;word-break:break-word}
+.game-ask{font-size:12.5px;color:var(--ink-soft);margin-top:5px}
+.choices{display:grid;gap:9px;margin-top:15px}
+.choice{
+  background:var(--bg2);border:1.5px solid var(--line);border-radius:15px;
+  padding:14px 12px;font-size:14.5px;transition:.15s;
+}
+.choice.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.choice.wrong{background:var(--bad);border-color:var(--bad);color:#fff}
+.choice.dim{opacity:.45}
+.game-feedback{margin-top:14px;font-size:14px;line-height:1.45}
+.game-feedback.ok{color:var(--ok)}
+.game-feedback.no{color:var(--bad)}
+.game-feedback + .btn-primary{margin-top:12px}
+.game-done-ico{font-size:52px;line-height:1}
+.game-done-title{font-family:'Baloo 2',sans-serif;font-size:21px;color:var(--pink-deep);margin:6px 0 12px}
+
+/* eşleştirme */
+.match-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}
+.match-col{display:grid;gap:9px;align-content:start}
+.match-card{
+  background:var(--bg2);border:1.5px solid var(--line);border-radius:14px;
+  padding:13px 8px;font-size:13.5px;line-height:1.25;word-break:break-word;transition:.15s;
+}
+.match-card.sel{background:var(--pink-soft);border-color:var(--pink)}
+.match-card.done{background:var(--ok);border-color:var(--ok);color:#fff;opacity:.6}
+.match-card.miss{background:var(--bad);border-color:var(--bad);color:#fff;animation:shake .4s}
+
+/* adam asmaca */
+.hm-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hm-face{font-size:36px;line-height:1}
+.hm-lives{font-size:13px;letter-spacing:1px}
+.hm-clue{font-size:23px}
+.hm-word{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:17px 0}
+.hm-word i{font-style:normal;font-family:'Baloo 2',sans-serif;font-size:21px;line-height:1.4}
+.hm-slot{min-width:24px;border-bottom:3px solid var(--pink-soft);text-align:center;color:var(--pink-deep)}
+.hm-slot.on{border-bottom-color:var(--pink)}
+.hm-fixed{min-width:14px;color:var(--ink-soft)}
+.hm-space{width:15px}
+.hm-keys{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px}
+.hm-key{
+  background:var(--bg2);border:1.5px solid var(--line);border-radius:10px;
+  padding:10px 0;font-family:'Baloo 2',sans-serif;font-size:14px;transition:.12s;
+}
+.hm-key.hit{background:var(--ok);border-color:var(--ok);color:#fff}
+.hm-key.miss{background:#EFE4EA;color:#B9A5B0;opacity:.6}
+
+/* ilerleme */
+.tprog{margin-bottom:12px}
+.tprog:last-child{margin-bottom:0}
+.tprog-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:5px}
+.tprog-head b{font-family:'Baloo 2',sans-serif;font-size:13.5px}
+
+/* ============ 7 SEKMELİ MENÜ ============ */
+.t-short{display:none}
+@media (max-width:620px){
+  .t-full{display:none}
+  .t-short{display:inline}
+  .hm-keys{grid-template-columns:repeat(7,1fr);gap:5px}
+  .hm-key{padding:9px 0;font-size:13px}
+  .match-card{font-size:12.5px;padding:11px 6px}
+  .game-prompt{font-size:25px}
+  .w-ticks{font-size:10.5px;letter-spacing:0}
+}
+@media (max-width:420px){
+  .wrow{gap:6px;padding:8px 10px}
+  .w-en{font-size:13.5px}
+  .w-tr{font-size:12px}
+}

@@ -9,12 +9,13 @@ import { confetti } from './confetti.js';
 import * as today from './views/today.js';
 import * as week from './views/week.js';
 import * as books from './views/books.js';
+import * as english from './views/english.js';
 import * as badges from './views/badges.js';
 import * as stats from './views/stats.js';
 import * as exams from './views/exams.js';
 import * as settings from './views/settings.js';
 
-const VIEWS = { today, week, books, badges, stats, exams, settings };
+const VIEWS = { today, week, books, english, badges, stats, exams, settings };
 const SESSION_KEY = 'lgs-unlocked';
 
 const WELCOME_QUOTES = [

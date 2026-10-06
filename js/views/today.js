@@ -1,55 +1,185 @@
-// "Bugün" ekranı — pano: çalışma etkinliği, Hedefim (soru girişi), son deneme, profil,
-// rozet/hediye karoları. Giriş ve deneme ayrıntısı drawer'da, rozet/hediyeler ortada pencerede.
+// "Bugün" ekranı — pano:
+//   üst: çalışma etkinliği | öğrenci kutusu (rütbe, XP, rozet/hediye/son deneme karoları, uyarı)
+//   alt: ay takvimi (tam günler zincirle bağlı) | seçili günün hedefleri (ders kutuları)
+// Giriş ve deneme ayrıntısı drawer'da, rozet/hediyeler ortada pencerede.
 import { SUBJECTS, METRICS, BADGES } from '../data.js';
 import * as store from '../store.js';
 import { dayTotals, summarize, levelInfo, streakRisk, unlockedGifts } from '../gamify.js';
-import { todayKey, fmtNet, netOf, esc, clampInt, keyOf, addDays, fmtShort, daysBetween, dateOf, estimateScore } from '../utils.js';
+import {
+  todayKey, fmtNet, netOf, esc, clampInt, keyOf, addDays, fmtShort, daysBetween, dateOf,
+  estimateScore, DAY_SHORT, MONTHS,
+} from '../utils.js';
 import { miniRing, curves } from '../charts.js';
 import { confetti } from '../confetti.js';
 import { streakWarning, badgeCard, allBadgeStates } from './badges.js';
 import * as gifts from './gifts.js';
-import { rankEmblem, rankOf, nextRank } from '../rank.js';
+import { rankEmblem, rankOf, nextRank, RANKS } from '../rank.js';
 
-const dayKey = todayKey; // her render'da yeniden okunur (gece yarısını geçse de doğru)
 const nf = n => Number(n).toLocaleString('tr-TR');
 
-let drawer = null;         // null | { mode:'entry', subj } | { mode:'exam' }
-let modal = null;          // null | 'badges' | 'gifts'
+let drawer = null;         // null | { mode:'entry', day, subj } | { mode:'exam' }
+let modal = null;          // null | 'badges' | 'gifts' | 'ranks'
 let badgeTab = 'next';     // rozet penceresi: 'next' | 'earned'
+let selDay = todayKey();   // takvimde seçili gün
+let month = null;          // takvimde görünen ay (ayın 1'i)
 let justOpened = false;
 let escHandler = null;
 // giriş animasyonları yalnız sayfaya ilk girişte (drawer/pencere açılıp kapanırken tekrar etmesin)
 let animateNext = true;
-export const reset = () => { drawer = null; modal = null; animateNext = true; };
+export const reset = () => { drawer = null; modal = null; animateNext = true; selDay = todayKey(); month = null; };
 
 const METRIC_TONE = { d: 'ok', y: 'bad', b: 'mute', ct: 'teach' };
+const SHORT = { turkce: 'Türkçe', matematik: 'Matematik', fen: 'Fen', inkilap: 'İnkılap', ingilizce: 'İngilizce', din: 'Din' };
+const shortName = s => SHORT[s.key] || s.name;
+const DAY_NAMES = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+const fmtLongDay = key => { const d = dateOf(key); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${DAY_NAMES[d.getDay()]}`; };
 
-/* ---------------- soru girişi drawer'ı ---------------- */
-function bigStepper(subject, metric, value) {
+/* ---------------- gün durumu (takvim ve panel) ---------------- */
+function dayInfo(key) {
+  const t = dayTotals(store.get().days[key]);
+  const goal = store.goalFor(key) || 0;
+  const today = todayKey();
+  const pct = goal ? Math.min(100, Math.round((t.q / goal) * 100)) : 0;
+  const status = key > today ? 'future'
+    : goal > 0 && t.q >= goal ? 'perfect'
+    : t.q > 0 ? 'partial'
+    : key === today ? 'today' : 'missed';
+  return { key, q: t.q, goal, pct, status, t };
+}
+
+/** Seçili güne kadar kesintisiz tam gün sayısı (o gün tam değilse 0) */
+function chainAt(key) {
+  let n = 0, d = dateOf(key);
+  while (dayInfo(keyOf(d)).status === 'perfect' && n < 3650) { n++; d = addDays(d, -1); }
+  return n;
+}
+
+/* ---------------- ay takvimi ---------------- */
+function calendar() {
+  const m = month || new Date(dateOf(selDay).getFullYear(), dateOf(selDay).getMonth(), 1);
+  const y = m.getFullYear(), mo = m.getMonth();
+  const daysIn = new Date(y, mo + 1, 0).getDate();
+  const lead = (new Date(y, mo, 1).getDay() + 6) % 7;          // Pazartesi başlar
+  const today = todayKey();
+  const cells = Array.from({ length: daysIn }, (_, i) => dayInfo(keyOf(new Date(y, mo, i + 1))));
+  const now = new Date();
+  const isCurrent = y === now.getFullYear() && mo === now.getMonth();
+
+  // ay özeti: tam gün, en uzun zincir, ortalama, girilen gün
+  const past = cells.filter(c => c.key <= today);
+  let best = 0, run = 0;
+  for (const c of cells) { run = c.status === 'perfect' ? run + 1 : 0; best = Math.max(best, run); }
+  const perfect = past.filter(c => c.status === 'perfect').length;
+  const logged = past.filter(c => c.q > 0).length;
+  const avg = past.length ? Math.round(past.reduce((a, c) => a + c.pct, 0) / past.length) : 0;
+
+  const grid = cells.map((c, i) => {
+    const col = (lead + i) % 7;
+    const prev = cells[i - 1], next = cells[i + 1];
+    const chainL = c.status === 'perfect' && prev?.status === 'perfect' && col !== 0;
+    const chainR = c.status === 'perfect' && next?.status === 'perfect' && col !== 6;
+    const d = dateOf(c.key).getDate();
+    return `
+    <button type="button" class="cal-d ${c.status} ${c.key === selDay ? 'sel' : ''} ${c.key === today ? 'is-today' : ''}"
+            data-day="${c.key}" ${c.status === 'future' ? 'disabled' : ''} style="--i:${(Math.floor((lead + i) / 7) + col)}"
+            title="${fmtLongDay(c.key)}${c.goal ? ` · ${c.q}/${c.goal} soru` : ''}">
+      ${chainL ? '<span class="cal-chain l"></span>' : ''}${chainR ? '<span class="cal-chain r"></span>' : ''}
+      <span class="cal-top"><em>${c.status === 'partial' ? '%' + c.pct : ''}</em>${c.status === 'perfect' ? '<i>★</i>' : ''}</span>
+      <b>${d}</b>
+      <span class="cal-bar"><i style="width:${c.pct}%"></i></span>
+    </button>`;
+  }).join('');
+
   return `
-  <div class="bstep ${METRIC_TONE[metric.key]}">
-    <span class="bstep-lbl">${metric.emoji} ${esc(metric.label)}</span>
-    <div class="bstep-row">
-      <button type="button" data-act="dec" data-s="${subject}" data-m="${metric.key}" aria-label="azalt">−</button>
-      <input type="number" inputmode="numeric" min="0" max="9999" value="${value}"
-             data-s="${subject}" data-m="${metric.key}" aria-label="${esc(metric.label)}">
-      <button type="button" data-act="inc" data-s="${subject}" data-m="${metric.key}" aria-label="artır">+</button>
+  <div class="cal">
+    <div class="cal-head">
+      <button type="button" class="cal-nav" data-month="-1" aria-label="önceki ay">‹</button>
+      <div class="cal-title"><small>Takvim</small><b>${MONTHS[mo]} ${y}</b></div>
+      <button type="button" class="cal-nav" data-month="1" aria-label="sonraki ay" ${isCurrent ? 'disabled' : ''}>›</button>
     </div>
-    <div class="bstep-quick">
-      <button type="button" data-act="add5" data-s="${subject}" data-m="${metric.key}">+5</button>
-      <button type="button" data-act="add10" data-s="${subject}" data-m="${metric.key}">+10</button>
+    <div class="cal-stats">
+      <div><b>★ ${perfect}</b>tam gün</div>
+      <div><b>🔗 ${best}</b>en uzun zincir</div>
+      <div><b>%${avg}</b>ortalama</div>
+      <div><b>${logged}/${past.length}</b>girilen gün</div>
+    </div>
+    <div class="cal-week">${DAY_SHORT.map(d => `<span>${d}</span>`).join('')}</div>
+    <div class="cal-grid">${'<span></span>'.repeat(lead)}${grid}</div>
+    <div class="cal-legend">
+      <span><i class="perfect"></i>Hedef tuttu</span><span><i class="partial"></i>Kısmen</span><span><i class="missed"></i>Boş geçti</span>
     </div>
   </div>`;
 }
 
-const SHORT = { turkce: 'Türkçe', matematik: 'Matematik', fen: 'Fen', inkilap: 'İnkılap', ingilizce: 'İngilizce', din: 'Din' };
-const shortName = s => SHORT[s.key] || s.name;
+/* ---------------- seçili günün hedefleri ---------------- */
+function subjectBox(s, key) {
+  const r = store.recOf(key, s.key);
+  const own = r.d + r.y + r.b;
+  const q = own + r.ct;
+  const acc = own ? Math.round((r.d / own) * 100) : 0;
+  const done = METRICS.filter(m => r[m.key] > 0);
+  return `
+  <button type="button" class="tbox ${q ? '' : 'empty'}" data-subjbox="${s.key}" style="--c:${s.color};--i:${s.ink}">
+    <span class="tbox-ico">${s.emoji}</span>
+    <span class="tbox-main">
+      <span class="tbox-name">${esc(shortName(s))}</span>
+      ${q ? `
+        <span class="tbox-q"><b>${q}</b> soru · <b>${fmtNet(netOf(r.d, r.y))}</b> net</span>
+        <span class="tbox-tags">${done.map(m => `<i class="tg ${METRIC_TONE[m.key]}">${m.emoji} ${r[m.key]}</i>`).join('')}</span>`
+      : '<span class="tbox-none">Girilmedi</span>'}
+    </span>
+    <span class="tbox-ring">${miniRing(acc, { size: 46, stroke: 5, color: s.ink, track: s.color + '55' })}<b>${own ? '%' + acc : '+'}</b></span>
+  </button>`;
+}
 
-const subjQ = key => { const r = store.recOf(dayKey(), key); return r.d + r.y + r.b + r.ct; };
+function dayPanel() {
+  const info = dayInfo(selDay);
+  const chain = chainAt(selDay);
+  const isToday = selDay === todayKey();
+  return `
+  <div class="dayp">
+    <div class="dayp-head">
+      <span class="dayp-ico">🎯</span>
+      <div><b>${isToday ? 'Bugünün hedefleri' : 'Günün hedefleri'}</b><small>${fmtLongDay(selDay)}</small></div>
+      ${isToday ? '' : '<button type="button" class="dayp-today" data-day-today>Bugüne dön</button>'}
+    </div>
+    <div class="dayp-sum">
+      <span class="dayp-ring">${miniRing(info.pct, { size: 84, stroke: 9, color: '#C2427F', track: '#F6E4EE' })}<b>%${info.pct}</b></span>
+      <div class="dayp-facts">
+        <span class="dayp-q"><b>${info.q}</b> / ${info.goal || '–'} soru</span>
+        ${info.status === 'perfect' ? '<span class="dayp-star">★ Tam gün</span>' : info.goal ? `<span class="dayp-left">Hedefe <b>${Math.max(0, info.goal - info.q)}</b> soru</span>` : ''}
+        <span class="dayp-chain">🔗 Zincir: <b>${chain}</b> gün</span>
+        <span class="dayp-net">${fmtNet(info.t.net)} net · ${info.t.d} doğru</span>
+      </div>
+    </div>
+    <div class="dayp-boxes">${SUBJECTS.map(s => subjectBox(s, selDay)).join('')}</div>
+    <button type="button" class="btn-primary dayp-go" data-entry>✏️ ${isToday ? 'Bugünkü soruları gir' : 'Bu günün sorularını düzenle'}</button>
+  </div>`;
+}
 
-/** Ders seçim kutuları (iki satır): ad + bugünkü soru */
-const subjSwitch = active => SUBJECTS.map(x => {
-  const q = subjQ(x.key);
+/* ---------------- soru girişi drawer'ı (seçili gün) ---------------- */
+function bigStepper(day, subject, metric, value) {
+  return `
+  <div class="bstep ${METRIC_TONE[metric.key]}">
+    <span class="bstep-lbl">${metric.emoji} ${esc(metric.label)}</span>
+    <div class="bstep-row">
+      <button type="button" data-act="dec" data-k="${day}" data-s="${subject}" data-m="${metric.key}" aria-label="azalt">−</button>
+      <input type="number" inputmode="numeric" min="0" max="9999" value="${value}"
+             data-k="${day}" data-s="${subject}" data-m="${metric.key}" aria-label="${esc(metric.label)}">
+      <button type="button" data-act="inc" data-k="${day}" data-s="${subject}" data-m="${metric.key}" aria-label="artır">+</button>
+    </div>
+    <div class="bstep-quick">
+      <button type="button" data-act="add5" data-k="${day}" data-s="${subject}" data-m="${metric.key}">+5</button>
+      <button type="button" data-act="add10" data-k="${day}" data-s="${subject}" data-m="${metric.key}">+10</button>
+    </div>
+  </div>`;
+}
+
+const subjQ = (day, key) => { const r = store.recOf(day, key); return r.d + r.y + r.b + r.ct; };
+
+/** Ders seçim kutuları (iki satır): ad + o günkü soru */
+const subjSwitch = (day, active) => SUBJECTS.map(x => {
+  const q = subjQ(day, x.key);
   return `
   <button type="button" class="ssw-b ${x.key === active ? 'on' : ''} ${q ? 'has' : ''}" data-subjtab="${x.key}" style="--c:${x.color};--i:${x.ink}">
     <span class="ssw-e">${x.emoji}</span>
@@ -58,8 +188,8 @@ const subjSwitch = active => SUBJECTS.map(x => {
   </button>`;
 }).join('');
 
-function drawerSummary(s) {
-  const r = store.recOf(dayKey(), s.key);
+function drawerSummary(day, s) {
+  const r = store.recOf(day, s.key);
   const own = r.d + r.y + r.b;
   return `
     <span><b>${own + r.ct}</b>soru</span>
@@ -68,27 +198,29 @@ function drawerSummary(s) {
 }
 
 function entryDrawer() {
+  const day = drawer.day;
   const s = SUBJECTS.find(x => x.key === drawer.subj) || SUBJECTS[0];
-  const r = store.recOf(dayKey(), s.key);
+  const r = store.recOf(day, s.key);
   const i = SUBJECTS.findIndex(x => x.key === s.key);
   const nx = SUBJECTS[i + 1];
+  const isToday = day === todayKey();
   return `
   <div class="drawer-scrim" data-closedrawer></div>
   <aside class="drawer xdrawer sdrawer ${justOpened ? 'opening' : ''}" style="--c:${s.color};--i:${s.ink}"
          role="dialog" aria-modal="true" aria-label="Soru girişi">
     <div class="drawer-head">
       <span class="sdrawer-ico">✏️</span>
-      <div class="drawer-title"><div class="book-name">Bugünkü soruların</div><div class="book-sub">Dersi seç, sayıları gir</div></div>
+      <div class="drawer-title"><div class="book-name">${isToday ? 'Bugünkü soruların' : esc(fmtLongDay(day))}</div><div class="book-sub">Dersi seç, sayıları gir</div></div>
       <button type="button" class="drawer-x" data-closedrawer aria-label="kapat">✕</button>
     </div>
     <div class="drawer-body">
-      <div class="ssw" data-ssw>${subjSwitch(s.key)}</div>
+      <div class="ssw" data-ssw>${subjSwitch(day, s.key)}</div>
       <div class="sname"><span>${s.emoji}</span>${esc(s.name)}</div>
-      <div class="bsteps">${METRICS.map(m => bigStepper(s.key, m, r[m.key])).join('')}</div>
+      <div class="bsteps">${METRICS.map(m => bigStepper(day, s.key, m, r[m.key])).join('')}</div>
       <p class="xt-hint">🧑‍🏫 Çözdürdüğün sorular da soru sayına eklenir ve iki kat puan kazandırır.</p>
     </div>
     <div class="xdrawer-foot">
-      <div class="xprev" data-dsum>${drawerSummary(s)}</div>
+      <div class="xprev" data-dsum>${drawerSummary(day, s)}</div>
       ${nx
         ? `<button type="button" class="btn-primary" data-subjtab="${nx.key}">Sıradaki: ${esc(shortName(nx))} →</button>`
         : '<button type="button" class="btn-primary" data-closedrawer>Tamam ✓</button>'}
@@ -186,33 +318,49 @@ function giftsModal() {
   </div>`;
 }
 
-/* ---------------- sağ: profil, rozet/hediye karoları ---------------- */
-function profileCard(state, st) {
+/** Rütbeler penceresi: tüm rütbeler renkli zeminde, bulunduğun yer parlar */
+function ranksModal() {
+  const st = summarize(store.get());
+  const lvl = levelInfo(st.xp);
+  const cur = rankOf(lvl.level), nr = nextRank(lvl.level);
+  const span = nr ? nr.min - cur.min : 1;
+  const pct = nr ? Math.min(100, ((lvl.level - cur.min) / span) * 100) : 100;
+  return `
+  <div class="modal-scrim" data-closemodal></div>
+  <div class="modal rmodal" role="dialog" aria-modal="true" aria-label="Rütbeler">
+    <button type="button" class="drawer-x rmodal-x" data-closemodal aria-label="kapat">✕</button>
+    <div class="rmodal-head">
+      <div class="rmodal-cur">${rankEmblem(lvl.level, 120)}</div>
+      <div>
+        <small>Rütben</small>
+        <b>${esc(cur.name)}</b>
+        <span>Sv. ${lvl.level} · ${esc(lvl.title)}</span>
+        ${nr ? `
+          <div class="rmodal-bar"><i style="width:${pct}%"></i></div>
+          <em>${esc(nr.name)} rütbesine <b>${nr.min - lvl.level}</b> seviye kaldı</em>` : '<em>En üst rütbedesin! 👑</em>'}
+      </div>
+    </div>
+    <div class="rmodal-grid">${RANKS.map((r, i) => {
+      const state = r === cur ? 'cur' : lvl.level >= r.min ? 'done' : 'locked';
+      const to = RANKS[i + 1] ? `Sv. ${r.min}-${RANKS[i + 1].min - 1}` : `Sv. ${r.min}+`;
+      return `
+      <div class="rcell ${state}" style="--d:${i * 70}ms">
+        ${state === 'cur' ? '<span class="rcell-here">Buradasın</span>' : ''}
+        ${rankEmblem(r.min, 108)}
+        <b>${esc(r.name)}</b>
+        <span>${state === 'locked' ? `🔒 Sv. ${r.min}'de açılır` : state === 'done' ? `✓ ${to}` : to}</span>
+      </div>`;
+    }).join('')}</div>
+  </div>`;
+}
+
+/* ---------------- öğrenci kutusu: profil + karolar + uyarı ---------------- */
+function studentCard(state, st) {
   const lvl = levelInfo(st.xp);
   const kalan = daysBetween(new Date(), dateOf(state.examDate));
   const risk = streakRisk(state);
   const rk = rankOf(lvl.level), nr = nextRank(lvl.level);
-  return `
-  <div class="tprofile">
-    <div class="tprofile-cover" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-    <span class="tprofile-rank" title="${esc(rk.name)} rütbesi">${rankEmblem(lvl.level, 104)}</span>
-    <div class="tprofile-name">${esc(state.name || 'Öğrenci')}</div>
-    <div class="tprofile-sub">Sv. ${lvl.level} · ${esc(lvl.title)}</div>
-    <span class="tprofile-rankname">${esc(rk.name)} rütbesi${nr ? ` · ${esc(nr.name)}'e ${nr.min - lvl.level} seviye` : ' · en üst rütbe'}</span>
-    <div class="txp-line">
-      <span class="txp-val"><span data-count="${st.xp}">${nf(st.xp)}</span> <small>XP</small></span>
-      <span class="txp-lbl">Sv. ${lvl.level + 1}'e ${nf(lvl.need - lvl.into)}</span>
-    </div>
-    <span class="txp-bar"><i style="width:${lvl.pct}%"></i></span>
-    <div class="tprofile-tiles">
-      <div class="ttile ${risk.atRisk ? 'danger' : ''}" title="${risk.atRisk ? 'Serin tehlikede! Bugün en az 1 soru gir' : 'Üst üste çalıştığın gün'}"><span>🔥</span><b data-count="${st.streak}">${st.streak}</b>gün seri</div>
-      <div class="ttile"><span>⏳</span><b ${kalan >= 0 ? `data-count="${kalan}"` : ''}>${kalan >= 0 ? kalan : '–'}</b>LGS'ye gün</div>
-    </div>
-  </div>`;
-}
 
-/** Rozetler ve Hediyeler: alanı dolduran iki büyük karo, tıklayınca ortada pencere */
-function hubCard(state, st) {
   const states = allBadgeStates();
   const RANK = { diamond: 0, gold: 1, silver: 2, bronze: 3 };
   const earned = states.filter(x => x.has).sort((a, b) => RANK[a.b.rarity] - RANK[b.b.rarity]);
@@ -221,72 +369,54 @@ function hubCard(state, st) {
   const opened = store.openedMap(state);
   const won = unlockedGifts(giftList, st);
   const waiting = won.some(id => !opened[id]);
+
+  const exams = state.exams || [];
+  const ex = exams[exams.length - 1];
+  const exNet = ex ? SUBJECTS.reduce((a, s) => a + netOf(ex.subjects[s.key]?.d, ex.subjects[s.key]?.y), 0) : 0;
+  const prev = exams[exams.length - 2];
+  const exDiff = ex && prev ? estimateScore(ex.subjects) - estimateScore(prev.subjects) : null;
+
   return `
-  <div class="thub">
-    <button type="button" class="thub-t tb" data-modal="badges">
-      <span class="thub-top"><span class="thub-ico">🏅</span><span class="thub-go">↗</span></span>
-      <span class="thub-val"><b>${earned.length}</b><small>/${BADGES.length}</small></span>
-      <span class="thub-lbl">Rozetlerim</span>
-      <span class="thub-icos">${earned.slice(0, 5).map(x => `<i class="r-${x.b.rarity}">${x.b.ico}</i>`).join('') || '<em>Henüz yok</em>'}</span>
-      ${nextOne ? `<span class="thub-next">Sıradaki: ${esc(nextOne.b.name)} · ${nf(nextOne.cur)}/${nf(nextOne.target)}</span>` : ''}
-    </button>
-    <button type="button" class="thub-t tg2 ${waiting ? 'waiting' : ''}" data-modal="gifts">
-      <span class="thub-top"><span class="thub-ico">🎁</span><span class="thub-go">↗</span></span>
-      <span class="thub-val"><b>${won.length}</b><small>/${giftList.length}</small></span>
-      <span class="thub-lbl">Hediyelerim</span>
-      <span class="thub-next">${waiting ? '🎉 Açılmayı bekleyen hediyen var!' : giftList.length ? 'Kazanılacak hediyelerine bak' : 'Henüz hediye eklenmedi'}</span>
-    </button>
+  <div class="student">
+    <div class="student-main">
+      <div class="tprofile-cover" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <button type="button" class="tprofile-rank" data-modal="ranks" title="Rütbeleri gör">${rankEmblem(lvl.level, 104)}</button>
+      <div class="tprofile-name">${esc(state.name || 'Öğrenci')}</div>
+      <div class="tprofile-sub">Sv. ${lvl.level} · ${esc(lvl.title)}</div>
+      <button type="button" class="tprofile-rankname" data-modal="ranks">${esc(rk.name)} rütbesi${nr ? ` · ${esc(nr.name)}'e ${nr.min - lvl.level} seviye` : ' · en üst rütbe'} ›</button>
+      <div class="txp-line">
+        <span class="txp-val"><span data-count="${st.xp}">${nf(st.xp)}</span> <small>XP</small></span>
+        <span class="txp-lbl">Sv. ${lvl.level + 1}'e ${nf(lvl.need - lvl.into)}</span>
+      </div>
+      <span class="txp-bar"><i style="width:${lvl.pct}%"></i></span>
+      <div class="tprofile-tiles">
+        <div class="ttile ${risk.atRisk ? 'danger' : ''}" title="${risk.atRisk ? 'Serin tehlikede! Bugün en az 1 soru gir' : 'Üst üste çalıştığın gün'}"><span>🔥</span><b data-count="${st.streak}">${st.streak}</b>gün seri</div>
+        <div class="ttile"><span>⏳</span><b ${kalan >= 0 ? `data-count="${kalan}"` : ''}>${kalan >= 0 ? kalan : '–'}</b>LGS'ye gün</div>
+      </div>
+    </div>
+    <div class="student-side">
+      <button type="button" class="stile tb" data-modal="badges">
+        <span class="stile-ico">🏅</span>
+        <span class="stile-main"><span class="stile-val"><b>${earned.length}</b>/${BADGES.length}</span><span class="stile-lbl">Rozetlerim</span>
+          <span class="stile-sub">${nextOne ? `Sıradaki: ${esc(nextOne.b.name)}` : 'Hepsi toplandı!'}</span></span>
+        <span class="stile-icos">${earned.slice(0, 3).map(x => `<i>${x.b.ico}</i>`).join('')}</span>
+      </button>
+      <button type="button" class="stile tg2 ${waiting ? 'waiting' : ''}" data-modal="gifts">
+        <span class="stile-ico">🎁</span>
+        <span class="stile-main"><span class="stile-val"><b>${won.length}</b>/${giftList.length}</span><span class="stile-lbl">Hediyelerim</span>
+          <span class="stile-sub">${waiting ? '🎉 Açılmayı bekleyen var!' : giftList.length ? 'Kazanılacaklara bak' : 'Henüz hediye yok'}</span></span>
+      </button>
+      <button type="button" class="stile te" ${ex ? 'data-examdetail' : 'disabled'}>
+        <span class="stile-ico">🏆</span>
+        <span class="stile-main"><span class="stile-val"><b>${ex ? fmtNet(exNet) : '–'}</b>${ex ? ' net' : ''}</span><span class="stile-lbl">${ex ? esc(ex.name) : 'Son deneme'}</span>
+          <span class="stile-sub">${ex ? `${estimateScore(ex.subjects)} puan${exDiff === null ? '' : ` · ${exDiff >= 0 ? '+' : ''}${exDiff}`}` : 'Henüz deneme yok'}</span></span>
+      </button>
+      <div id="warnSlot">${streakWarning(state, { compact: true })}</div>
+    </div>
   </div>`;
 }
 
-/* ---------------- sol: Hedefim ve son deneme ---------------- */
-function goalAction(state) {
-  const key = dayKey();
-  const t = dayTotals(state.days[key]);
-  const goal = store.goalFor(key) || 0;
-  const pct = goal ? Math.min(100, (t.q / goal) * 100) : 0;
-  const done = goal > 0 && t.q >= goal;
-  const doneSubj = SUBJECTS.filter(s => subjQ(s.key) > 0);
-  return `
-  <button type="button" class="tact tact-goal" data-entry>
-    <span class="tact-go" aria-hidden="true">✏️</span>
-    <span class="tact-ring">${miniRing(pct, { size: 58, stroke: 7, color: '#fff', track: 'rgba(255,255,255,.3)' })}<b>${Math.round(pct)}%</b></span>
-    <span class="tact-title">${done ? 'Hedef tamam! 🎉' : 'Hedefim'}</span>
-    <span class="tact-desc">${goal
-      ? (done ? `${t.q}/${goal} soru. Harikasın!` : `${goal} soruluk hedefe <b>${goal - t.q}</b> soru kaldı`)
-      : 'Ayarlar\'dan günlük hedef koy'}</span>
-    <span class="tact-subj">${doneSubj.length
-      ? doneSubj.map(s => `<i>${s.emoji} ${subjQ(s.key)}</i>`).join('')
-      : '<i>Soru girmek için dokun</i>'}</span>
-  </button>`;
-}
-
-/** Son deneme özeti; dokununca ayrıntı drawer'da */
-function lastExam(state) {
-  const exams = state.exams || [];
-  const ex = exams[exams.length - 1];
-  if (!ex) {
-    return `
-    <div class="tact tact-exam">
-      <span class="tact-ico">🏆</span>
-      <span class="tact-title">Son deneme</span>
-      <span class="tact-desc">Henüz deneme girilmedi</span>
-    </div>`;
-  }
-  const net = SUBJECTS.reduce((a, s) => a + netOf(ex.subjects[s.key]?.d, ex.subjects[s.key]?.y), 0);
-  const score = estimateScore(ex.subjects);
-  const prev = exams[exams.length - 2];
-  const diff = prev ? score - estimateScore(prev.subjects) : null;
-  return `
-  <button type="button" class="tact tact-exam" data-examdetail>
-    <span class="tact-go" aria-hidden="true">↗</span>
-    <span class="tact-ico">🏆</span>
-    <span class="tact-title">${esc(ex.name)}</span>
-    <span class="tact-nums"><span><b>${fmtNet(net)}</b>net</span><span><b>${score}</b>puan</span>${diff === null ? '' : `<span><b>${diff >= 0 ? '+' : ''}${diff}</b>değişim</span>`}</span>
-    <span class="tact-desc">${fmtShort(dateOf(ex.date))} ${dateOf(ex.date).getFullYear()} · ayrıntı için dokun</span>
-  </button>`;
-}
-
+/* ---------------- çalışma etkinliği ---------------- */
 function activity(state) {
   const labels = [], q = [], d = [];
   for (let i = 29; i >= 0; i--) {
@@ -306,13 +436,11 @@ function activity(state) {
     ${curves([
       { name: 'Soru', color: '#C2427F', values: q },
       { name: 'Doğru', color: '#4FC9A6', values: d },
-    ], labels, { height: 230, interactive: true })}
+    ], labels, { height: 300, interactive: true })}
     <div class="tguide" hidden></div>
     <div class="ttip" hidden></div>
   </div>`;
 }
-
-const DAY_NAMES = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
 /** Grafikte üzerine gelinen günün kutusu: toplamlar ve ders ders soru */
 function dayTip(day) {
@@ -346,31 +474,27 @@ export function render() {
   const anim = animateNext;
   animateNext = false;
   const html = `
-  <div class="tdash ${anim ? 'anim' : ''}">
-    <section class="tleft">
+  <div class="tdash2 ${anim ? 'anim' : ''}">
+    <div class="trow">
       <div id="tActivity">${activity(state)}</div>
-      <div class="tacts">
-        <div id="tGoal">${goalAction(state)}</div>
-        <div id="tExam">${lastExam(state)}</div>
-      </div>
-    </section>
-    <aside class="tright">
-      <div id="tProfile">${profileCard(state, st)}</div>
-      <div id="tHub">${hubCard(state, st)}</div>
-      <div id="warnSlot">${streakWarning(state)}</div>
-    </aside>
+      <div id="tStudent">${studentCard(state, st)}</div>
+    </div>
+    <div class="trow trow-cal">
+      <div id="tCal">${calendar()}</div>
+      <div id="tDay">${dayPanel()}</div>
+    </div>
   </div>
   <div id="tLayer">${drawer?.mode === 'entry' ? entryDrawer() : drawer?.mode === 'exam' ? examDrawer() : ''}${
-    modal === 'badges' ? badgesModal() : modal === 'gifts' ? giftsModal() : ''}</div>`;
+    modal === 'badges' ? badgesModal() : modal === 'gifts' ? giftsModal() : modal === 'ranks' ? ranksModal() : ''}</div>`;
   justOpened = false;
   return html;
 }
 
 export function bind(root, ctx) {
-  const key = dayKey();
   const $ = sel => root.querySelector(sel);
 
   const afterChange = () => {
+    const key = todayKey();
     const t = dayTotals(store.get().days[key]);
     const goal = store.goalFor(key) || 0;
     const flag = 'goal-' + key;
@@ -384,24 +508,78 @@ export function bind(root, ctx) {
   };
 
   // Sayfayı yeniden çizmeden yalnız değişen parçaları tazele (girişte odak kaybolmasın)
-  const softUpdate = subject => {
+  const softUpdate = (day, subject) => {
     const state = store.get();
     const st = summarize(state);
     const s = SUBJECTS.find(x => x.key === subject);
     if (s) {
       const ds = $('[data-dsum]');
-      if (ds) ds.innerHTML = drawerSummary(s);
+      if (ds) ds.innerHTML = drawerSummary(day, s);
       const sw = $('[data-ssw]');
-      if (sw) sw.innerHTML = subjSwitch(s.key);
+      if (sw) sw.innerHTML = subjSwitch(day, s.key);
     }
-    $('#warnSlot').innerHTML = streakWarning(state);
-    $('#tGoal').innerHTML = goalAction(state);
-    $('#tHub').innerHTML = hubCard(state, st);
-    $('#tProfile').innerHTML = profileCard(state, st);
+    $('#tStudent').innerHTML = studentCard(state, st);
+    $('#tCal').innerHTML = calendar();
+    $('#tDay').innerHTML = dayPanel();
     $('#tActivity').innerHTML = activity(state);
   };
 
   const open = next => { drawer = next; justOpened = true; ctx.rerender(); };
+
+  root.addEventListener('click', e => {
+    const t = e.target;
+    // takvim: gün seç, ay değiştir
+    const dayBtn = t.closest('[data-day]');
+    if (dayBtn) { selDay = dayBtn.dataset.day; ctx.rerender(); return; }
+    if (t.closest('[data-day-today]')) { selDay = todayKey(); month = null; ctx.rerender(); return; }
+    const mb = t.closest('[data-month]');
+    if (mb) {
+      const base = month || new Date(dateOf(selDay).getFullYear(), dateOf(selDay).getMonth(), 1);
+      month = new Date(base.getFullYear(), base.getMonth() + Number(mb.dataset.month), 1);
+      const now = new Date();
+      // ay değişince: bu aysa bugün, değilse ayın son günü seçili
+      selDay = month.getFullYear() === now.getFullYear() && month.getMonth() === now.getMonth()
+        ? todayKey() : keyOf(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+      ctx.rerender();
+      return;
+    }
+
+    // seçili günün girişi
+    const sb = t.closest('[data-subjbox]');
+    if (sb) { open({ mode: 'entry', day: selDay, subj: sb.dataset.subjbox }); return; }
+    if (t.closest('[data-entry]')) {
+      const first = SUBJECTS.find(s => !subjQ(selDay, s.key)) || SUBJECTS[0];
+      open({ mode: 'entry', day: selDay, subj: first.key });
+      return;
+    }
+    if (t.closest('[data-examdetail]')) { open({ mode: 'exam' }); return; }
+    const tabb = t.closest('[data-subjtab]');
+    if (tabb) { drawer = { ...drawer, subj: tabb.dataset.subjtab }; ctx.rerender(); return; }
+    if (t.closest('[data-closedrawer]')) { drawer = null; ctx.rerender(); return; }
+
+    const md = t.closest('[data-modal]');
+    if (md) {
+      modal = md.dataset.modal;
+      if (modal === 'gifts') gifts.resetMode();
+      ctx.rerender();
+      return;
+    }
+    if (t.closest('[data-closemodal]')) { modal = null; ctx.rerender(); return; }
+    const bt = t.closest('[data-btab]');
+    if (bt) { badgeTab = bt.dataset.btab; ctx.rerender(); return; }
+
+    const btn = t.closest('button[data-act]');
+    if (!btn) return;
+    const { act, k, s, m } = btn.dataset;
+    const input = root.querySelector(`input[data-k="${k}"][data-s="${s}"][data-m="${m}"]`);
+    const cur = clampInt(input.value);
+    const step = { inc: 1, dec: -1, add5: 5, add10: 10 }[act] || 0;
+    const next = Math.max(0, cur + step);
+    input.value = next;
+    store.setValue(k, s, m, next);
+    softUpdate(k, s);
+    afterChange();
+  });
 
   // Çalışma etkinliği: üzerine gelinen günün kutusu (grafik yerinde tazelendiği için olaylar kökte)
   const showTip = (clientX, svg) => {
@@ -421,7 +599,6 @@ export function bind(root, ctx) {
     guide.style.height = `${((+d.h - +d.t - +d.b) / +d.h) * rect.height}px`;
     if (tip.dataset.i !== String(i)) { tip.innerHTML = dayTip(day); tip.dataset.i = i; }
     tip.hidden = false;
-    // kutu imlecin sağında, sığmazsa solunda
     const tw = tip.offsetWidth, bw = box.clientWidth;
     let left = offX + px + 14;
     if (left + tw > bw - 8) left = offX + px - tw - 14;
@@ -441,53 +618,16 @@ export function bind(root, ctx) {
     if (svg) showTip(e.touches[0].clientX, svg); else hideTip();
   }, { passive: true });
 
-  root.addEventListener('click', e => {
-    const t = e.target;
-    if (t.closest('[data-entry]')) {
-      // girilmemiş ilk derse aç; hepsi girildiyse ilk ders
-      const first = SUBJECTS.find(s => !subjQ(s.key)) || SUBJECTS[0];
-      open({ mode: 'entry', subj: first.key });
-      return;
-    }
-    if (t.closest('[data-examdetail]')) { open({ mode: 'exam' }); return; }
-    const tabb = t.closest('[data-subjtab]');
-    if (tabb) { drawer = { mode: 'entry', subj: tabb.dataset.subjtab }; ctx.rerender(); return; }
-    if (t.closest('[data-closedrawer]')) { drawer = null; ctx.rerender(); return; }
-
-    const md = t.closest('[data-modal]');
-    if (md) {
-      modal = md.dataset.modal;
-      if (modal === 'gifts') gifts.resetMode();
-      ctx.rerender();
-      return;
-    }
-    if (t.closest('[data-closemodal]')) { modal = null; ctx.rerender(); return; }
-    const bt = t.closest('[data-btab]');
-    if (bt) { badgeTab = bt.dataset.btab; ctx.rerender(); return; }
-
-    const btn = t.closest('button[data-act]');
-    if (!btn) return;
-    const { act, s, m } = btn.dataset;
-    const input = root.querySelector(`input[data-s="${s}"][data-m="${m}"]`);
-    const cur = clampInt(input.value);
-    const step = { inc: 1, dec: -1, add5: 5, add10: 10 }[act] || 0;
-    const next = Math.max(0, cur + step);
-    input.value = next;
-    store.setValue(key, s, m, next);
-    softUpdate(s);
-    afterChange();
-  });
-
   // hediye penceresi açıkken sekme/kutu açma olayları hediye modülünde
   if (modal === 'gifts') gifts.bind(root, ctx);
 
   // animasyonlar bitince sınıf kalksın: yerinde tazelenen kutular yeniden zıplamasın
-  const dash = root.querySelector('.tdash.anim');
+  const dash = root.querySelector('.tdash2.anim');
   if (dash) setTimeout(() => dash.classList.remove('anim'), 2600);
 
   // ilk girişte sayılar sıfırdan yukarı sayar
   if (dash && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    root.querySelectorAll('.tdash [data-count]').forEach((el, k) => {
+    root.querySelectorAll('.tdash2 [data-count]').forEach((el, k) => {
       const end = Number(el.dataset.count) || 0;
       if (!end) return;
       const t0 = performance.now() + 250 + k * 80, dur = 900;
@@ -514,23 +654,22 @@ export function bind(root, ctx) {
   };
   document.addEventListener('keydown', escHandler);
 
+  const writeInput = (input, final) => {
+    const { k, s, m } = input.dataset;
+    if (final) input.value = clampInt(input.value);
+    store.setValue(k, s, m, input.value);
+    softUpdate(k, s);
+    if (final) afterChange();
+  };
   root.addEventListener('input', e => {
-    const input = e.target.closest('input[data-s][data-m]');
-    if (!input) return;
-    store.setValue(key, input.dataset.s, input.dataset.m, input.value);
-    softUpdate(input.dataset.s);
+    const input = e.target.closest('input[data-k][data-s][data-m]');
+    if (input) writeInput(input, false);
   });
-
   root.addEventListener('change', e => {
-    const input = e.target.closest('input[data-s][data-m]');
-    if (!input) return;
-    input.value = clampInt(input.value);
-    store.setValue(key, input.dataset.s, input.dataset.m, input.value);
-    softUpdate(input.dataset.s);
-    afterChange();
+    const input = e.target.closest('input[data-k][data-s][data-m]');
+    if (input) writeInput(input, true);
   });
-
   root.addEventListener('focusin', e => {
-    if (e.target.matches('input[data-s][data-m]')) e.target.select();
+    if (e.target.matches('input[data-k][data-s][data-m]')) e.target.select();
   });
 }

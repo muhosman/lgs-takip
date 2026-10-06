@@ -1839,3 +1839,188 @@ body[data-tab="today"] .top-badges .chip-gift{display:none !important}
   .tact{min-height:0}
   .tact-ring,.tact-ico{margin-bottom:6px}
 }
+
+/* ===================== BUGÜN v3: pano + takvim ===================== */
+/* üst başlık Bugün'de yok (profil kutusu var); telefonda yalnız ayar düğmesi kalır */
+@media (min-width:900px){ body[data-tab="today"] .topbar{display:none} }
+@media (max-width:899px){
+  body[data-tab="today"] .topbar{background:none;margin:0;padding:calc(10px + env(safe-area-inset-top)) 0 0;position:absolute;right:12px;top:0;z-index:5}
+  body[data-tab="today"] .hello{display:none}
+  body[data-tab="today"] .top-badges .chip{background:#fff;border-color:var(--line);color:var(--ink);box-shadow:var(--shadow-sm)}
+  body[data-tab="today"] .app{padding-top:12px}
+}
+.tdash2{display:flex;flex-direction:column;gap:22px}
+.trow{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;align-items:stretch}
+.trow > div{display:flex;min-width:0}
+.trow > div > *{flex:1;min-width:0}
+.trow-cal{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+.tactivity{display:flex;flex-direction:column}
+.tactivity svg.curves{margin-top:auto}
+
+/* öğrenci kutusu: solda profil, sağda karolar + uyarı */
+.student{background:#fff;border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow-sm);padding:12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.student-main{min-width:0;display:flex;flex-direction:column}
+.student-main .tprofile-cover{height:86px}
+.tprofile-rank{background:none;border:0;padding:0;cursor:pointer;transition:transform .2s}
+.tprofile-rank:hover{transform:scale(1.06) rotate(-3deg)}
+button.tprofile-rankname{border:0;cursor:pointer;font-family:inherit;align-self:flex-start;transition:.15s}
+button.tprofile-rankname:hover{background:#FCE3EF}
+.student-main .tprofile-tiles{margin-top:auto}
+.student-side{display:flex;flex-direction:column;gap:9px;min-width:0}
+.stile{display:flex;align-items:center;gap:11px;text-align:left;border-radius:18px;padding:11px 12px;color:#fff;font-family:inherit;position:relative;overflow:hidden;transition:transform .15s;flex:1}
+.stile:not([disabled]):hover{transform:translateX(3px)}
+.stile[disabled]{cursor:default;opacity:.75}
+.stile::after{content:'';position:absolute;right:-24px;bottom:-30px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.14)}
+.stile.tb{background:linear-gradient(135deg,#8E7CFF,#6A4FD6)}
+.stile.tg2{background:linear-gradient(135deg,#4FD1A5,#26A884)}
+.stile.te{background:linear-gradient(135deg,#F9BE5B,#F08F3B)}
+.stile.waiting .stile-ico{animation:gift-wiggle 1.8s ease-in-out infinite}
+.stile-ico{width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,.25);display:grid;place-items:center;font-size:21px;flex-shrink:0}
+.stile-main{display:flex;flex-direction:column;min-width:0;flex:1}
+.stile-val{font-size:12px;opacity:.9}
+.stile-val b{font-size:21px;font-weight:800;letter-spacing:-.4px;opacity:1}
+.stile-lbl{font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stile-sub{font-size:11px;opacity:.88;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stile-icos{display:flex;gap:3px;position:relative;z-index:1}
+.stile-icos i{font-style:normal;width:24px;height:24px;border-radius:7px;background:rgba(255,255,255,.9);display:grid;place-items:center;font-size:13px}
+.student-side #warnSlot .streak-warn{padding:10px 12px;border-radius:16px;font-size:12px;gap:9px}
+.student-side #warnSlot .streak-warn .streak-warn-ico{width:34px;height:34px;font-size:17px;border-radius:11px}
+
+/* takvim */
+.cal{background:#fff;border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow-sm);padding:18px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cal-nav{width:38px;height:38px;border-radius:12px;background:var(--bg);font-size:20px;color:var(--pink-deep)}
+.cal-nav[disabled]{opacity:.35;cursor:default}
+.cal-title{text-align:center;display:flex;flex-direction:column}
+.cal-title small{font-size:11px;color:var(--ink-soft);font-weight:600}
+.cal-title b{font-size:18px;font-weight:800}
+.cal-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
+.cal-stats div{background:var(--bg);border-radius:14px;padding:9px 6px;text-align:center;font-size:10.5px;color:var(--ink-soft)}
+.cal-stats b{display:block;font-size:17px;font-weight:800;color:var(--pink-deep)}
+.cal-week,.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.cal-week span{text-align:center;font-size:10.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.cal-d{
+  position:relative;aspect-ratio:7/6;border-radius:13px;border:1px solid var(--line);background:#fff;padding:5px 6px;
+  display:flex;flex-direction:column;justify-content:space-between;align-items:stretch;font-family:inherit;transition:transform .15s,box-shadow .15s;
+}
+.cal-d:not([disabled]):hover{transform:translateY(-2px);box-shadow:0 8px 16px rgba(150,70,120,.12)}
+.cal-top{display:flex;justify-content:space-between;align-items:center;height:12px;font-size:9.5px;font-weight:700}
+.cal-top em{font-style:normal;color:var(--ink-soft)}
+.cal-top i{font-style:normal;font-size:11px}
+.cal-d b{font-size:15px;font-weight:800;text-align:center;line-height:1}
+.cal-bar{height:4px;border-radius:99px;background:#F3E6EE;overflow:hidden}
+.cal-bar i{display:block;height:100%;border-radius:99px;background:var(--pink-deep)}
+.cal-d.perfect{background:linear-gradient(150deg,#E46BA4,#B95FD8);border-color:transparent;color:#fff;box-shadow:0 6px 14px rgba(185,95,216,.3)}
+.cal-d.perfect .cal-bar{background:rgba(255,255,255,.35)}
+.cal-d.perfect .cal-bar i{background:#fff}
+.cal-d.partial{background:#FCF1F6;border-color:#F4D7E6}
+.cal-d.missed{background:#F8F6F8;border-style:dashed;border-color:#E6DDE3;color:#B8A8B4}
+.cal-d.today{border-color:var(--pink);color:var(--pink-deep)}
+.cal-d.future{opacity:.45;cursor:not-allowed}
+.cal-d.is-today::after{content:'';position:absolute;bottom:-7px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--pink-deep)}
+.cal-d.sel{outline:2.5px solid var(--pink-deep);outline-offset:2px}
+.cal-chain{position:absolute;top:50%;width:10px;height:6px;margin-top:-3px;background:#B95FD8;z-index:1}
+.cal-chain.l{left:-9px}
+.cal-chain.r{right:-9px}
+.cal-legend{display:flex;gap:14px;margin-top:14px;font-size:11px;color:var(--ink-soft)}
+.cal-legend i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:5px;vertical-align:-2px}
+.cal-legend i.perfect{background:linear-gradient(150deg,#E46BA4,#B95FD8)}
+.cal-legend i.partial{background:#FCF1F6;border:1px solid #F4D7E6}
+.cal-legend i.missed{background:#F8F6F8;border:1px dashed #E6DDE3}
+
+/* seçili günün hedefleri */
+.dayp{background:#fff;border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow-sm);padding:18px;display:flex;flex-direction:column;gap:14px}
+.dayp-head{display:flex;align-items:center;gap:11px;background:var(--bg);margin:-6px -6px 0;padding:10px 12px;border-radius:18px}
+.dayp-ico{width:38px;height:38px;border-radius:12px;background:var(--frame);display:grid;place-items:center;font-size:19px}
+.dayp-head div{display:flex;flex-direction:column;flex:1}
+.dayp-head b{font-size:15px;font-weight:800}
+.dayp-head small{font-size:12px;color:var(--ink-soft)}
+.dayp-today{padding:7px 11px;border-radius:10px;background:#fff;color:var(--pink-deep);font-size:12px;border:1px solid var(--line)}
+.dayp-sum{display:flex;align-items:center;gap:16px}
+.dayp-ring{position:relative;width:84px;height:84px;display:grid;place-items:center;flex-shrink:0}
+.dayp-ring svg{position:absolute;inset:0}
+.dayp-ring b{font-size:18px;font-weight:800;color:var(--pink-deep)}
+.dayp-facts{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--ink-soft)}
+.dayp-q b{font-size:20px;color:var(--ink);font-weight:800}
+.dayp-star{color:#B9770A;font-weight:800}
+.dayp-left b,.dayp-chain b{color:var(--pink-deep)}
+.dayp-boxes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.dayp .tbox{padding:10px;border-radius:18px;gap:10px}
+.dayp .tbox-ico{width:38px;height:38px;border-radius:12px;font-size:19px}
+.dayp .tbox-ring{width:46px;height:46px}
+.dayp .tbox-ring b{font-size:11px}
+.dayp .tbox-tags .tg{font-size:10px;padding:1px 6px}
+.dayp-go{margin-top:auto}
+
+/* rütbeler penceresi: çizgili mor zemin */
+.rmodal{width:min(860px,94vw);max-height:min(90vh,820px);overflow-y:auto;padding:26px;border:0;color:#fff;
+  background:repeating-linear-gradient(135deg,#5B3FD6 0 14px,#6447E0 14px 28px);box-shadow:0 30px 80px rgba(40,10,90,.45)}
+.rmodal-x{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.18);color:#fff}
+.rmodal-head{display:flex;align-items:center;gap:18px;background:rgba(40,20,110,.45);border:1px solid rgba(255,255,255,.18);border-radius:22px;padding:14px 18px;margin-bottom:18px}
+.rmodal-cur{filter:drop-shadow(0 0 22px rgba(255,255,255,.35));animation:rcur 3s ease-in-out infinite}
+@keyframes rcur{50%{transform:translateY(-4px) scale(1.03)}}
+.rmodal-head small{display:block;font-size:12px;opacity:.75;font-weight:600}
+.rmodal-head b{display:block;font-size:28px;font-weight:800;letter-spacing:-.5px}
+.rmodal-head span{font-size:13px;opacity:.85}
+.rmodal-bar{height:9px;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden;margin:10px 0 6px;width:min(320px,52vw)}
+.rmodal-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#FFE27A,#FF9AD5)}
+.rmodal-head em{font-style:normal;font-size:12.5px;opacity:.9}
+.rmodal-head em b{display:inline;font-size:13px}
+.rmodal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;background:rgba(80,50,200,.35);border:2px solid rgba(255,255,255,.14);border-radius:24px;padding:12px}
+.rcell{position:relative;background:#3E2C8F;border-radius:18px;padding:16px 8px 12px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;animation:rcell .5s var(--d) both}
+@keyframes rcell{from{opacity:0;transform:translateY(14px) scale(.92)}to{opacity:1;transform:none}}
+.rcell b{font-size:15px;font-weight:800}
+.rcell span{font-size:11px;opacity:.8}
+.rcell.locked .rank-emblem{filter:grayscale(.85) brightness(.7)}
+.rcell.locked{background:#33267A}
+.rcell.cur{background:linear-gradient(160deg,#7A5CF0,#4E36C2);box-shadow:0 0 0 2px #FFE27A,0 0 30px rgba(255,226,122,.45)}
+.rcell-here{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#FFE27A;color:#4A2A00;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.rcell,.rmodal-cur{animation:none}}
+
+/* giriş animasyonları (v3) */
+.tdash2.anim #tActivity{animation:in-left .7s cubic-bezier(.2,.8,.2,1) both}
+.tdash2.anim .curves path[fill="none"]{stroke-dasharray:3000;stroke-dashoffset:3000;animation:draw 1.8s .35s cubic-bezier(.4,0,.2,1) forwards}
+.tdash2.anim .curves path[fill^="url"]{animation:fill-in .8s 1.1s both}
+.tdash2.anim .curves g,.tdash2.anim .curves line[stroke-dasharray],.tdash2.anim .curves circle[r="5.5"]{animation:fill-in .4s 1.9s both}
+.tdash2.anim #tStudent{animation:in-right .7s .12s cubic-bezier(.2,.8,.2,1) both}
+.tdash2.anim .stile{animation:in-right .55s cubic-bezier(.2,.9,.3,1.1) both}
+.tdash2.anim .stile:nth-child(1){animation-delay:.35s}
+.tdash2.anim .stile:nth-child(2){animation-delay:.45s}
+.tdash2.anim .stile:nth-child(3){animation-delay:.55s}
+.tdash2.anim #warnSlot{animation:in-shake .7s .7s both}
+.tdash2.anim .tprofile-cover i{animation:in-avatar .6s both}
+.tdash2.anim .txp-bar i{transform-origin:left;animation:grow-x 1.1s .6s cubic-bezier(.2,.8,.2,1) both}
+.tdash2.anim #tCal{animation:in-pop .6s .25s both}
+.tdash2.anim .cal-d{animation:in-pop .45s calc(.35s + var(--i) * 35ms) cubic-bezier(.2,.9,.3,1.2) both}
+.tdash2.anim #tDay{animation:in-right .7s .4s cubic-bezier(.2,.8,.2,1) both}
+.tdash2.anim .rank-emblem .rk-wl{transform-origin:right center;animation:rk-wing .7s .9s cubic-bezier(.2,.9,.3,1.2) both}
+.tdash2.anim .rank-emblem .rk-wr{transform-origin:left center;animation:rk-wing .7s .9s cubic-bezier(.2,.9,.3,1.2) both}
+.tdash2.anim .rank-emblem .rk-al{animation:rk-al .5s 1s cubic-bezier(.2,.9,.3,1.3) both}
+.tdash2.anim .rank-emblem .rk-ar{animation:rk-ar .5s 1s cubic-bezier(.2,.9,.3,1.3) both}
+.tdash2.anim .rank-emblem .rk-spikes .rk-spike{transform-origin:center;animation:rk-pop .45s 1.1s both}
+.tdash2.anim .rank-emblem .rk-top{transform-origin:center;animation:rk-drop .55s 1.15s cubic-bezier(.2,.9,.3,1.4) both}
+.tdash2.anim .rank-emblem .rk-center{transform-origin:center;animation:rk-pop .6s .75s cubic-bezier(.3,1.5,.5,1) both}
+@media (prefers-reduced-motion:reduce){.tdash2.anim *{animation:none !important}}
+
+@media (max-width:1180px){
+  .trow,.trow-cal{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .student{grid-template-columns:minmax(0,1fr)}
+  .cal{padding:14px}
+  .cal-week,.cal-grid{gap:5px}
+  .cal-d{padding:3px 4px;border-radius:10px}
+  .cal-d b{font-size:13px}
+  .cal-top{font-size:8px}
+  .cal-chain{width:7px}
+  .cal-chain.l{left:-6px}
+  .cal-chain.r{right:-6px}
+  .cal-stats b{font-size:15px}
+  .rmodal{padding:16px}
+  .rmodal-head{flex-direction:column;text-align:center}
+  .rmodal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:560px){
+  .dayp-boxes{grid-template-columns:minmax(0,1fr)}
+  .dayp{padding:14px}
+}

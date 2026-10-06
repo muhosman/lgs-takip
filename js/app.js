@@ -7,7 +7,6 @@ import { fmtLong, fmtDay, dateOf, daysBetween, esc } from './utils.js';
 import { confetti } from './confetti.js';
 
 import * as today from './views/today.js';
-import * as week from './views/week.js';
 import * as books from './views/books.js';
 import * as english from './views/english.js';
 import * as badges from './views/badges.js';
@@ -18,7 +17,7 @@ import * as gifts from './views/gifts.js';
 import * as giftAdmin from './views/giftAdmin.js';
 import * as admin from './admin.js';
 
-const VIEWS = { today, week, books, english, badges, stats, exams, settings, gifts, giftAdmin };
+const VIEWS = { today, books, english, badges, stats, exams, settings, gifts, giftAdmin };
 const SESSION_KEY = 'lgs-unlocked';
 
 const WELCOME_QUOTES = [
@@ -57,7 +56,6 @@ function greetingText(name) {
 
 // Panelin üstündeki sayfa başlığı; Bugün'de selamlama
 const PAGE_INFO = {
-  week:      ['Çizelge', 'Haftalık soru tablon'],
   books:     ['Kitaplar', 'Kitapların ve ünitelerin'],
   english:   ['İngilizce', 'Kelimelerin, oyunların ve ilerlemen'],
   badges:    ['Rozetler', 'Topladıkların ve sıradakiler'],

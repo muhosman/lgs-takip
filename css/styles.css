@@ -2087,3 +2087,32 @@ button.tprofile-rankname:hover{background:#FCE3EF}
   .tmodal .bc{padding:52px 8px 24px}
   .tmodal .bc-congrats{font-size:10.5px}
 }
+
+/* takvim hücresinde soru hedefi; takvim ve günlük hedef paneli sabit, eşit boyda */
+.cal-goal{font-size:9.5px;font-weight:800;text-align:center;line-height:1;color:var(--pink-deep);min-height:9.5px}
+.cal-goal i{font-style:normal;font-weight:600;opacity:.65}
+.cal-d.perfect .cal-goal{color:#fff}
+.cal-d.missed .cal-goal{color:#B8A8B4}
+.cal-d b{font-size:14px}
+.cal-d{padding:4px 5px 5px;gap:1px}
+.cal-grid{grid-template-rows:repeat(6,minmax(0,1fr))}
+.trow-cal{align-items:stretch}
+#tCal .cal,#tDay .dayp{height:100%}
+.cal{display:flex;flex-direction:column}
+.cal-grid{flex:1}
+.dayp{min-height:0;overflow:hidden}
+.dayp-boxes{flex:1;min-height:0;grid-template-rows:repeat(3,minmax(0,1fr))}
+.dayp .tbox{min-height:0;overflow:hidden;align-items:center}
+.dayp .tbox-main{overflow:hidden}
+.dayp .tbox-tags{flex-wrap:nowrap;overflow:hidden}
+.dayp .tbox-q{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:1180px){
+  #tCal .cal,#tDay .dayp{height:auto}
+  .dayp-boxes{grid-template-rows:none}
+}
+@media (max-width:560px){
+  .cal-goal{font-size:7.5px;min-height:7.5px}
+  .cal-goal i{display:none}
+  .cal-top em{display:none}
+}
+.tg{white-space:nowrap}

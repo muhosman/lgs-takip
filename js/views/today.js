@@ -86,6 +86,7 @@ function calendar() {
       ${chainL ? '<span class="cal-chain l"></span>' : ''}${chainR ? '<span class="cal-chain r"></span>' : ''}
       <span class="cal-top"><em>${c.status === 'partial' ? '%' + c.pct : ''}</em>${c.status === 'perfect' ? '<i>★</i>' : ''}</span>
       <b>${d}</b>
+      <span class="cal-goal">${c.status === 'future' || !c.goal ? '' : `${c.q}<i>/${c.goal}</i>`}</span>
       <span class="cal-bar"><i style="width:${c.pct}%"></i></span>
     </button>`;
   }).join('');
@@ -104,7 +105,7 @@ function calendar() {
       <div><b>${logged}/${past.length}</b>girilen gün</div>
     </div>
     <div class="cal-week">${DAY_SHORT.map(d => `<span>${d}</span>`).join('')}</div>
-    <div class="cal-grid">${'<span></span>'.repeat(lead)}${grid}</div>
+    <div class="cal-grid">${'<span></span>'.repeat(lead)}${grid}${'<span></span>'.repeat(42 - lead - daysIn)}</div>
     <div class="cal-legend">
       <span><i class="perfect"></i>Hedef tuttu</span><span><i class="partial"></i>Kısmen</span><span><i class="missed"></i>Boş geçti</span>
     </div>

@@ -15,8 +15,9 @@ import * as stats from './views/stats.js';
 import * as exams from './views/exams.js';
 import * as settings from './views/settings.js';
 import * as gifts from './views/gifts.js';
+import * as giftAdmin from './views/giftAdmin.js';
 
-const VIEWS = { today, week, books, english, badges, stats, exams, settings, gifts };
+const VIEWS = { today, week, books, english, badges, stats, exams, settings, gifts, giftAdmin };
 const SESSION_KEY = 'lgs-unlocked';
 
 const WELCOME_QUOTES = [
@@ -226,7 +227,7 @@ const ctx = {
 };
 
 function renderTab(tab) {
-  if (tab !== 'settings') settings.lockGifts();   // hediye düzenleyicisi açık kalmasın
+  if (tab !== 'giftAdmin') giftAdmin.lock();      // hediye yönetimi açık kalmasın
   currentTab = tab;
   const view = VIEWS[tab];
 
@@ -249,7 +250,7 @@ function renderTab(tab) {
   document.querySelectorAll('#tabbar button').forEach(b =>
     b.classList.toggle('on', b.dataset.tab === tab));
   // Ayarlar alt menüde değil, üstteki dişli düğmesinde
-  $('#gearBtn').classList.toggle('on', tab === 'settings');
+  $('#gearBtn').classList.toggle('on', tab === 'settings' || tab === 'giftAdmin');
   $('#giftChip').classList.toggle('on', tab === 'gifts');
 }
 

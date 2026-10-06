@@ -162,10 +162,11 @@ export function render() {
     .sort((a, b) => b.ratio - a.ratio).slice(0, 3);
   // kazanılanlar karışık: en değerli üstte, aynı zorlukta grup sırası
   const RANK = { diamond: 0, gold: 1, silver: 2, bronze: 3 };
+  const warn = streakWarning(state);
   const won = states.filter(x => x.has).sort((a, b) => RANK[a.b.rarity] - RANK[b.b.rarity]);
 
   return `
-  ${streakWarning(state)}
+  <div class="btop ${warn ? 'has-warn' : ''}">
   <div class="card bhero">
     <div class="ring bhero-ring">
       ${ring((got / BADGES.length) * 100)}
@@ -186,7 +187,8 @@ export function render() {
           <span class="bnext-num">${nf(x.cur)}/${nf(x.target)}</span>
         </button>`).join('') : '<div class="hint" style="text-align:left">Hepsini topladın, efsanesin! 🦄</div>'}
     </div>
-    <div class="bhero-won">
+  </div>
+    <div class="card bhero-won">
       <div class="bhero-title">Kazandıkların <i>${won.length}</i></div>
       ${won.length ? `
         <div class="bwon-list">${won.map(x => `
@@ -196,6 +198,7 @@ export function render() {
           </button>`).join('')}
         </div>` : '<div class="hint" style="text-align:left">İlk soruyu çöz, ilk rozet gelsin 🌱</div>'}
     </div>
+    ${warn}
   </div>
   <div id="bControls">${chipsHtml(states)}</div>
   <div id="bList">${listHtml(states, risk)}</div>

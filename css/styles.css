@@ -837,15 +837,34 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 .gift-tabs{margin-top:14px}
 .gift-tabs .subtab{flex:1;white-space:nowrap}
 
-/* ayarlar: hediye düzenleyicisi */
-.gadm-list{list-style:none;margin:0 0 12px;padding:0}
-.gadm{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}
-.gadm-main{flex:1;min-width:0}
-.gadm-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gadm-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
-.gadm-edit{width:30px;height:30px;border-radius:10px;background:#FFF0F5;font-size:13px;flex-shrink:0}
-.gadm.editing{flex-direction:column;align-items:stretch;gap:8px;padding:12px 0}
-.gadm-done{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--ink-soft);flex-shrink:0}
+/* hediye yönetimi sayfası */
+.back-link{background:none;color:var(--pink-deep);font-size:13.5px;padding:4px 2px 12px}
+.gift-gate{max-width:380px;margin:20px auto 13px;text-align:center}
+.gift-gate-ico{font-size:44px;line-height:1;margin-bottom:6px}
+.ga-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ga-head-title{font-family:'Baloo 2',sans-serif;font-size:18px;color:var(--pink-deep)}
+.ga-head-sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+.ga-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:13px}
+.ga-sec{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow-sm);border:1.5px solid var(--line);padding:13px 14px}
+.ga-sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1.5px dashed var(--line)}
+.ga-sec-title{font-family:'Baloo 2',sans-serif;font-size:15px}
+.ga-sec-title i{font-style:normal;font-size:12px;color:var(--ink-soft);margin-left:3px}
+.ga-add-mini{background:#FFF0F5;color:var(--pink-deep);border-radius:10px;padding:6px 10px;font-size:12px}
+.ga-list{list-style:none;margin:0;padding:0}
+.ga-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ga-row:last-child{border-bottom:0}
+.ga-main{flex:1;min-width:0}
+.ga-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ga-sub{font-size:11.5px;color:var(--ink-soft);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ga-sub b{color:var(--ink)}
+.ga-tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:99px;background:var(--line)}
+.ga-tag.ready{background:#FFF1D6;color:#8A5A12}
+.ga-tag.ok{background:#E2F7EE;color:#23805C}
+.ga-done{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:10px;font-weight:700;color:var(--ink-soft);flex-shrink:0}
+.ga-btn{width:32px;height:32px;border-radius:10px;background:#FFF0F5;font-size:13px;flex-shrink:0}
+.ga-btn.danger{background:#FFEDF1;color:#D64257}
+.ga-empty{font-size:12px;color:var(--ink-soft);padding:12px 0 2px}
+@media (max-width:420px){.ga-grid{grid-template-columns:minmax(0,1fr)}}
 
 /* ============ ROZETLER (yeni) ============ */
 :root{
@@ -869,10 +888,15 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 @media (prefers-reduced-motion:reduce){.streak-warn.late,.chip-fire.danger{animation:none}}
 
 /* özet: halka + sıradakiler */
-.bhero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:stretch}
+/* üst satır: [halka + sıradakiler] [kazandıkların] [seri uyarısı] */
+.btop{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-bottom:4px;align-items:stretch}
+.btop.has-warn{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,.8fr)}
+.btop > *{margin:0}
+.btop .streak-warn{flex-direction:column;justify-content:center;gap:8px;border-radius:var(--r)}
+.bhero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
 .bhero-ring{align-self:center}
 /* kazanılanlar: kendi içinde kayan karışık liste (sayfa kaymasın) */
-.bhero-won{min-width:0;display:flex;flex-direction:column;gap:6px;padding-left:16px;border-left:1.5px dashed var(--line)}
+.bhero-won{min-width:0;display:flex;flex-direction:column;gap:6px}
 .bhero-title i{font-style:normal;color:var(--pink-deep);margin-left:3px}
 .bwon-list{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px;
@@ -964,13 +988,16 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 .bsheet-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px}
 .bsheet-warn{margin-top:11px;padding:8px 10px;border-radius:12px;background:#FFEDEF;color:#8A2836;font-size:12.5px;font-weight:700}
 
-@media (max-width:860px) and (min-width:521px){
-  .bhero{grid-template-columns:auto minmax(0,1fr)}
-  .bhero-won{grid-column:1 / -1;padding:12px 0 0;border-left:0;border-top:1.5px dashed var(--line)}
+@media (max-width:1100px){
+  /* üç sütun sığmaz: uyarı üstte tam genişlik, altında iki kart */
+  .btop.has-warn{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .btop .streak-warn{grid-column:1 / -1;grid-row:1;flex-direction:row;align-items:flex-start}
+}
+@media (max-width:760px){
+  .btop,.btop.has-warn{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:520px){
-  .bhero{grid-template-columns:auto minmax(0,1fr);gap:12px}
-  .bhero-won{grid-column:1 / -1;padding:12px 0 0;border-left:0;border-top:1.5px dashed var(--line)}
+  .bhero{gap:12px}
   .bwon-list{max-height:118px;grid-template-columns:repeat(2,minmax(0,1fr))}
   .btiles{grid-template-columns:repeat(3,1fr);gap:7px}
   .bt{padding:10px 4px 8px}

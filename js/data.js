@@ -38,11 +38,11 @@ export const xpForLevel = n => 20 * n * (n - 1);
  * bu yüzden açılan hediye kötü bir denemeyle tekrar kilitlenmez.
  */
 export const GIFT_KINDS = [
-  { key: 'net',       label: 'Deneme neti',        cond: t => `Bir denemede ${t} net yap`,   left: n => `${n} net kaldı` },
-  { key: 'score',     label: 'Tahmini LGS puanı',  cond: t => `Bir denemede ${t} puan al`,  left: n => `${n} puan kaldı` },
-  { key: 'level',     label: 'Seviye',             cond: t => `Sv. ${t} ol`,                left: n => `${n} seviye kaldı` },
-  { key: 'questions', label: 'Toplam soru',        cond: t => `Toplam ${t} soru çöz`,       left: n => `${n} soru kaldı` },
-  { key: 'streak',    label: 'Gün serisi',         cond: t => `${t} gün üst üste çalış`,    left: n => `${n} gün daha` },
+  { key: 'net', emoji: '📝', label: 'Deneme neti',        cond: t => `Bir denemede ${t} net yap`,   left: n => `${n} net kaldı` },
+  { key: 'score', emoji: '🎓', label: 'Tahmini LGS puanı',  cond: t => `Bir denemede ${t} puan al`,  left: n => `${n} puan kaldı` },
+  { key: 'level', emoji: '⭐', label: 'Seviye',             cond: t => `Sv. ${t} ol`,                left: n => `${n} seviye kaldı` },
+  { key: 'questions', emoji: '✏️', label: 'Toplam soru',        cond: t => `Toplam ${t} soru çöz`,       left: n => `${n} soru kaldı` },
+  { key: 'streak', emoji: '🔥', label: 'Gün serisi',         cond: t => `${t} gün üst üste çalış`,    left: n => `${n} gün daha` },
 ];
 export const GIFT_KIND_MAP = Object.fromEntries(GIFT_KINDS.map(k => [k.key, k]));
 

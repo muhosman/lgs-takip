@@ -23,6 +23,7 @@ let badgeTab = 'next';     // rozet penceresi: 'next' | 'earned'
 let selDay = todayKey();   // takvimde seçili gün
 let month = null;          // takvimde görünen ay (ayın 1'i)
 let justOpened = false;
+let modalFresh = false;     // pencere bu çizimde mi açıldı (açılış animasyonu yalnız o zaman)
 let escHandler = null;
 // giriş animasyonları yalnız sayfaya ilk girişte (drawer/pencere açılıp kapanırken tekrar etmesin)
 let animateNext = true;
@@ -492,9 +493,10 @@ export function render() {
       <div id="tDay">${dayPanel()}</div>
     </div>
   </div>
-  <div id="tLayer">${drawer?.mode === 'entry' && editable(drawer.day) ? entryDrawer() : drawer?.mode === 'exam' ? examDrawer() : ''}${
+  <div id="tLayer" class="${modalFresh ? '' : 'calm'}">${drawer?.mode === 'entry' && editable(drawer.day) ? entryDrawer() : drawer?.mode === 'exam' ? examDrawer() : ''}${
     modal === 'badges' ? badgesModal() : modal === 'gifts' ? giftsModal() : modal === 'ranks' ? ranksModal() : ''}</div>`;
   justOpened = false;
+  modalFresh = false;
   return html;
 }
 
@@ -568,6 +570,7 @@ export function bind(root, ctx) {
     const md = t.closest('[data-modal]');
     if (md) {
       modal = md.dataset.modal;
+      modalFresh = true;
       if (modal === 'gifts') gifts.resetMode();
       ctx.rerender();
       return;

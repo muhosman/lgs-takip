@@ -2267,3 +2267,20 @@ button.tprofile-rankname:hover{background:#FCE3EF}
 .gx-rays{background:repeating-conic-gradient(from 0deg,rgba(255,210,120,.09) 0 10deg,transparent 10deg 22deg)}
 .gx-box .giftsvg{width:340px;height:340px}
 @media (max-width:560px){.gx-box .giftsvg{width:260px;height:260px}}
+
+/* pencere içeriği yuvarlak köşelerde kesilmesin; yeniden çizimde açılış animasyonu tekrar etmesin */
+.tmodal{overflow:hidden}
+.tmodal .modal-body{padding-bottom:28px}
+.calm .modal,.calm .modal-scrim{animation:none}
+
+/* karosel: tüm slaytlar yerinde, akıcı kayar; kenarlar yumuşak solar */
+.gc-track{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 9%,#000 91%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 9%,#000 91%,transparent 100%)}
+.gc-slide{transform:translateX(calc(var(--o) * 190px)) scale(calc(1 - (min(max(var(--o), -1 * var(--o)), 3) * .2)));
+  opacity:calc(1 - min(max(var(--o), -1 * var(--o)), 2.6) * .36);
+  transition:transform .5s cubic-bezier(.22,.8,.2,1),opacity .5s,filter .5s}
+.gc-slide.far{opacity:0;pointer-events:none}
+.gc-slide:focus-visible{outline:2px solid #FFE27A;outline-offset:4px}
+.gc-slide:not(.center) .gc-pill.go{animation:none}
+@media (max-width:560px){
+  .gc-slide{transform:translateX(calc(var(--o) * 140px)) scale(calc(1 - (min(max(var(--o), -1 * var(--o)), 3) * .25)))}
+}

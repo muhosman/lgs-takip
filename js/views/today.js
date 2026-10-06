@@ -5,6 +5,7 @@ import { dayTotals } from '../gamify.js';
 import { todayKey, fmtNet, netOf, esc, clampInt } from '../utils.js';
 import { ring } from '../charts.js';
 import { confetti } from '../confetti.js';
+import { streakWarning } from './badges.js';
 
 const dayKey = todayKey; // her render'da yeniden okunur (gece yarısını geçse de doğru)
 
@@ -76,6 +77,7 @@ function subjectCard(state, s) {
 export function render() {
   const state = store.get();
   return `
+    <div id="warnSlot">${streakWarning(state)}</div>
     ${goalCard(state)}
     <div class="sec-title">Bugünün dersleri</div>
     <div class="subj-list">${SUBJECTS.map(s => subjectCard(state, s)).join('')}</div>
@@ -105,6 +107,8 @@ export function bind(root, ctx) {
     const t = dayTotals(store.get().days[key]);
     const goal = store.goalFor(key) || 0;
     const pct = goal ? Math.min(100, (t.q / goal) * 100) : 0;
+    const ws = root.querySelector('#warnSlot');
+    if (ws) ws.innerHTML = streakWarning(store.get());   // soru girilince uyarı kalkar
     const gc = root.querySelector('.goal-card');
     if (gc) {
       gc.outerHTML = goalCard(store.get());

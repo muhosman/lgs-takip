@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import * as sync from './sync.js';
 import { BADGES } from './data.js';
-import { summarize, levelInfo, earnedBadges, unlockedGifts } from './gamify.js';
+import { summarize, levelInfo, earnedBadges, unlockedGifts, streakRisk } from './gamify.js';
 import { fmtLong, fmtDay, dateOf, daysBetween } from './utils.js';
 import { confetti } from './confetti.js';
 
@@ -14,8 +14,9 @@ import * as badges from './views/badges.js';
 import * as stats from './views/stats.js';
 import * as exams from './views/exams.js';
 import * as settings from './views/settings.js';
+import * as gifts from './views/gifts.js';
 
-const VIEWS = { today, week, books, english, badges, stats, exams, settings };
+const VIEWS = { today, week, books, english, badges, stats, exams, settings, gifts };
 const SESSION_KEY = 'lgs-unlocked';
 
 const WELCOME_QUOTES = [
@@ -77,18 +78,24 @@ function refreshHeader() {
   $('#greeting').textContent = greetingText(state.name);
   $('#todayLabel').textContent = `${fmtDay(now)} · ${fmtLong(now)}`;
   $('#streakChip').innerHTML = `🔥 <b>${st.streak}</b>`;
+  const risk = streakRisk(state);
+  $('#streakChip').classList.toggle('danger', risk.atRisk);
+  $('#streakChip').title = risk.atRisk ? 'Serin tehlikede! Bugün en az 1 soru gir' : 'Üst üste çalıştığın gün';
 
   const kalan = daysBetween(now, dateOf(state.examDate));
-  $('#countdownChip').innerHTML = kalan >= 0 ? `⏳ <b>${kalan}</b> gün` : `🎓 <b>LGS</b>`;
+  $('#countdownChip').innerHTML = kalan >= 0 ? `⏳ <b>${kalan}</b><i class="chip-unit"> gün</i>` : `🎓 <b>LGS</b>`;
 
   $('#levelName').textContent = `Sv. ${lvl.level} · ${lvl.title}`;
   $('#levelXp').textContent = `${lvl.into} / ${lvl.need} XP`;
   $('#levelFill').style.width = lvl.pct + '%';
 
-  // açılmayı bekleyen hediye varsa Rozet sekmesinde nokta
+  // Hediye sepeti: kazanılan sayısı; açılmayı bekleyen kutu varsa sallanır
   const opened = state.openedGifts || {};
-  const waiting = unlockedGifts(state.gifts, st).some(id => !opened[id]);
-  document.querySelector('#tabbar [data-tab="badges"]')?.classList.toggle('has-gift', waiting);
+  const won = unlockedGifts(state.gifts, st);
+  const giftChip = $('#giftChip');
+  giftChip.classList.toggle('hidden', !(state.gifts || []).length);
+  giftChip.classList.toggle('waiting', won.some(id => !opened[id]));
+  giftChip.querySelector('b').textContent = won.length;
 }
 
 /* ---------------- rozetler ---------------- */
@@ -106,7 +113,7 @@ function checkBadges() {
     store.markGiftsSeen(gifts);
     refreshHeader();
     confetti(2400);
-    setTimeout(() => toast('🎁 Yeni bir hediyen var! Rozetler\'de seni bekliyor'), 300);
+    setTimeout(() => toast('🧺 Sepetine bir hediye düştü! Sağ üstten bak'), 300);
     if (fresh.length) store.markBadgesSeen(have);
     return;
   }
@@ -242,6 +249,7 @@ function renderTab(tab) {
     b.classList.toggle('on', b.dataset.tab === tab));
   // Ayarlar alt menüde değil, üstteki dişli düğmesinde
   $('#gearBtn').classList.toggle('on', tab === 'settings');
+  $('#giftChip').classList.toggle('on', tab === 'gifts');
 }
 
 function startApp() {
@@ -390,6 +398,7 @@ function init() {
   initSyncWatchers();
 
   $('#gearBtn').addEventListener('click', () => renderTab('settings'));
+  $('#giftChip').addEventListener('click', () => { gifts.resetMode(); renderTab('gifts'); });
 
   $('#tabbar').addEventListener('click', e => {
     const b = e.target.closest('button[data-tab]');

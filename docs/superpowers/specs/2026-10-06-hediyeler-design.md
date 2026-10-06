@@ -24,14 +24,17 @@ Açılmışlık saklanmaz, `summarize` çıktısından hesaplanır (`gamify.gift
   `resetAt` öncesi girdiler düşer. "Verileri sıfırla" hediye listesini korur,
   açılma/görülme durumunu temizler.
 
-## Öğrenci tarafı (Rozetler sayfasının üstü)
+## Öğrenci tarafı
 
-- Kilitli: soluk kutu, yalnız koşul ve ilerleme (`58/70`). Hediyenin adı yok.
-- Koşul sağlandı, açılmadı: sallanan kutu, "Açmak için dokun". Dokununca kutu
-  büyüyüp kaybolur, konfeti, ad görünür (`openedGifts`'e yazılır).
-- Açıldı: ad + "Teslim edildi ✓" ya da "Teslim bekliyor".
-- Yeni koşul sağlanınca bir kez konfeti + "Yeni bir hediyen var" bildirimi.
-  Açılmamış hediye varken alt menüde Rozet sekmesinde nokta.
+- Sağ üstte 🧺 sepet düğmesi: kazanılan hediye sayısı. Açılmayı bekleyen kutu varsa
+  sallanır ve noktası yanar. Hiç hediye yoksa gizli.
+- Sepete basınca "Hediyelerim" sayfası (alt menüde değil): özet (`3/12 hediye`) ve iki sekme.
+  - 🧺 Sepetim: kazanılanlar. Açılmamışlar sallanan kutu, dokununca büyüyüp kaybolur,
+    konfeti, ad görünür (`openedGifts`). Açılmışlarda ad + teslim durumu.
+  - 🎯 Kazanılacak Hediyeler: koşul, ilerleme ve kalan (`33 puan kaldı`), en yakın üstte.
+    Hediyenin adı gizli. Seri türünde ilerleme bugünkü seriden gösterilir.
+  - Açılmayı bekleyen kutu varsa Sepetim, yoksa Kazanılacak sekmesiyle açılır.
+- Yeni koşul sağlanınca bir kez konfeti + "Sepetine bir hediye düştü" bildirimi.
 
 ## Yönetici tarafı (Ayarlar)
 

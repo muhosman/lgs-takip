@@ -816,13 +816,26 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 }
 @media (prefers-reduced-motion:reduce){.gift.ready .gift-box{animation:none}}
 
-/* açılmayı bekleyen hediye varken Rozet sekmesinde nokta */
-.tabbar button.has-gift{position:relative}
-.tabbar button.has-gift::after{
-  content:'';position:absolute;top:6px;right:calc(50% - 16px);width:9px;height:9px;border-radius:50%;
-  background:var(--pink);box-shadow:0 0 0 2px #fff;animation:gift-dot 1.4s ease-in-out infinite;
+/* sağ üstteki hediye sepeti */
+.chip-gift{cursor:pointer;position:relative;transition:.15s}
+.chip-unit{font-style:normal}
+/* dar telefonda sağ üstte beş düğme var (seri, sayaç, bulut, sepet, ayar): selamlamaya yer kalsın */
+@media (max-width:420px){
+  .top-badges{gap:4px}
+  .top-badges .chip{padding:6px 7px}
+  .chip-unit{display:none}
 }
-@keyframes gift-dot{50%{transform:scale(1.3)}}
+.chip-gift b{color:var(--pink-deep)}
+.chip-gift:active{transform:scale(.92)}
+.chip-gift.on{background:#FFF0F6;border-color:var(--pink)}
+.chip-gift.waiting{animation:gift-wiggle 1.8s ease-in-out infinite}
+.chip-gift.waiting::after{
+  content:'';position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;
+  background:var(--pink);box-shadow:0 0 0 2px #fff;
+}
+@media (prefers-reduced-motion:reduce){.chip-gift.waiting{animation:none}}
+.gift-tabs{margin-top:14px}
+.gift-tabs .subtab{flex:1;white-space:nowrap}
 
 /* ayarlar: hediye düzenleyicisi */
 .gadm-list{list-style:none;margin:0 0 12px;padding:0}
@@ -831,3 +844,112 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 .gadm-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gadm-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
 .gadm-done{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--ink-soft);flex-shrink:0}
+
+/* ============ ROZETLER (yeni) ============ */
+:root{
+  --r-bronze:#E3A675; --r-bronze-bg:#FFF5EC;
+  --r-silver:#AEB8C8; --r-silver-bg:#F6F8FB;
+  --r-gold:#F2BE3A;   --r-gold-bg:#FFF9E6;
+  --r-diamond:#8C9BFF; --r-diamond-bg:#F3F1FF;
+}
+
+/* seri uyarısı (Bugün ve Rozetler) */
+.streak-warn{
+  display:flex;gap:11px;align-items:flex-start;padding:12px 14px;margin-bottom:13px;
+  border-radius:18px;background:#FFF6E5;border:1.5px solid #FFD58A;color:#7A4D12;font-size:13px;line-height:1.45;
+}
+.streak-warn.late{background:#FFEDEF;border-color:#FF9EAB;color:#8A2836;animation:warn-pulse 2s ease-in-out infinite}
+.streak-warn-ico{font-size:22px;line-height:1.1}
+.streak-warn-txt b{font-family:'Baloo 2',sans-serif;font-size:14px}
+.warn-sub{display:inline-block;margin-top:3px;font-size:11.5px;opacity:.85}
+@keyframes warn-pulse{50%{box-shadow:0 0 0 5px rgba(255,122,138,.15)}}
+.chip-fire.danger{border-color:#FF9EAB;background:#FFEDEF;animation:warn-pulse 2s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.streak-warn.late,.chip-fire.danger{animation:none}}
+
+/* özet: halka + sıradakiler */
+.bhero{display:flex;gap:18px;align-items:center}
+.bhero-ring .ring-num{font-size:30px}
+.bhero-next{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.bhero-title{font-family:'Baloo 2',sans-serif;font-size:13px;color:var(--ink-soft)}
+.bnext{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 10px;border-radius:14px;background:#FFF7FA;transition:.15s}
+.bnext:active{transform:scale(.98)}
+.bnext-ico{font-size:22px;line-height:1}
+.bnext-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.bnext-name{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bnext-num{font-family:'Baloo 2',sans-serif;font-size:12.5px;color:var(--pink-deep);flex-shrink:0}
+
+/* filtre: segment + yatay kayan grup çipleri */
+.bfilters{display:flex;gap:4px;padding:4px;margin:16px 0 10px;border-radius:15px;background:#FFE7F0}
+.seg{flex:1;padding:9px 6px;border-radius:12px;background:none;font-size:13px;color:var(--ink-soft);transition:.15s}
+.seg.on{background:var(--card);color:var(--pink-deep);box-shadow:var(--shadow-sm)}
+.bchips{display:flex;gap:7px;overflow-x:auto;padding:2px 2px 8px;margin:0 -2px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.bchips::-webkit-scrollbar{display:none}
+.bchip{flex-shrink:0;padding:7px 12px;border-radius:99px;background:var(--card);border:1.5px solid var(--line);font-size:12.5px;white-space:nowrap;transition:.15s}
+.bchip i{font-style:normal;font-size:11px;color:var(--ink-soft);margin-left:3px}
+.bchip.on{background:var(--pink);border-color:var(--pink);color:#fff}
+.bchip.on i{color:#FFE3EE}
+
+/* grup kartı */
+.bgroup{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow-sm);padding:14px;margin-bottom:13px}
+.bgroup-head{display:flex;justify-content:space-between;align-items:baseline}
+.bgroup-title{font-family:'Baloo 2',sans-serif;font-size:15.5px}
+.bgroup-count{font-family:'Baloo 2',sans-serif;font-size:13px;color:var(--pink-deep)}
+.bgroup-bar{display:block;height:5px;border-radius:99px;background:var(--line);overflow:hidden;margin:7px 0 12px}
+.bgroup-bar > i,.bt-bar > i,.bsheet-bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#FF9CC5,var(--pink),var(--lilac))}
+
+/* rozet karosu */
+.btiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:9px}
+.bt{
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;
+  padding:12px 7px 10px;border-radius:17px;background:#FCF8FA;border:2px solid transparent;transition:transform .15s;
+}
+.bt:active{transform:scale(.96)}
+.bt-ico{font-size:28px;line-height:1.1}
+.bt-name{font-family:'Baloo 2',sans-serif;font-size:12px;line-height:1.2}
+.bt-desc{font-size:10px;color:var(--ink-soft);line-height:1.25}
+.bt-bar{display:block;width:100%;height:5px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:4px}
+.bt-num{font-family:'Baloo 2',sans-serif;font-size:10px;color:var(--ink-soft);line-height:1}
+.bt.far{opacity:.5}
+.bt.far .bt-ico{font-size:20px;filter:grayscale(1);padding:4px 0}
+.bt.next{background:var(--card);border-style:dashed;border-color:var(--pink-soft)}
+.bt.earned.r-bronze{background:var(--r-bronze-bg);border-color:var(--r-bronze)}
+.bt.earned.r-silver{background:var(--r-silver-bg);border-color:var(--r-silver)}
+.bt.earned.r-gold{background:var(--r-gold-bg);border-color:var(--r-gold)}
+.bt.earned.r-diamond{background:linear-gradient(160deg,#F7F3FF,#EAF6FF);border-color:var(--r-diamond);box-shadow:0 4px 16px rgba(140,155,255,.3)}
+.bt.earned::after{
+  content:'';position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;
+}
+.bt.earned.r-bronze::after{background:var(--r-bronze)}
+.bt.earned.r-silver::after{background:var(--r-silver)}
+.bt.earned.r-gold::after{background:var(--r-gold)}
+.bt.earned.r-diamond::after{background:var(--r-diamond)}
+.bt.danger{border-color:#FF9EAB;border-style:solid;background:#FFF4F5}
+.bt.danger .bt-num{color:#D64257}
+
+/* rozet detayı (alttan açılan pencere) */
+.bsheet{width:min(380px,94vw)}
+.bsheet-body{text-align:center;padding:6px 22px 26px}
+.bsheet-rarity{font-family:'Baloo 2',sans-serif;font-size:12px;padding:3px 11px;border-radius:99px;color:#fff}
+.bsheet.r-bronze .bsheet-rarity{background:var(--r-bronze)}
+.bsheet.r-silver .bsheet-rarity{background:var(--r-silver)}
+.bsheet.r-gold .bsheet-rarity{background:var(--r-gold)}
+.bsheet.r-diamond .bsheet-rarity{background:linear-gradient(90deg,#7FC8FF,var(--r-diamond),#C79BFF)}
+.bsheet-ico{font-size:64px;line-height:1.1;margin:6px 0 4px;animation:bsheet-pop .4s cubic-bezier(.3,1.5,.5,1)}
+.bsheet-ico.locked{filter:grayscale(1);opacity:.45}
+@keyframes bsheet-pop{from{transform:scale(.5)}to{transform:scale(1)}}
+.bsheet-name{font-family:'Baloo 2',sans-serif;font-size:21px;color:var(--pink-deep)}
+.bsheet-desc{font-size:13.5px;color:var(--ink-soft);margin-top:2px}
+.bsheet-bar{display:block;height:9px;border-radius:99px;background:var(--line);overflow:hidden;margin:16px 0 7px}
+.bsheet-state{font-size:13px}
+.bsheet-state b{font-family:'Baloo 2',sans-serif;color:var(--pink-deep);font-size:15px}
+.bsheet-state.done{margin-top:14px;display:inline-block;padding:6px 14px;border-radius:99px;background:var(--ok);color:#fff;font-weight:700}
+.bsheet-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px}
+.bsheet-warn{margin-top:11px;padding:8px 10px;border-radius:12px;background:#FFEDEF;color:#8A2836;font-size:12.5px;font-weight:700}
+
+@media (max-width:520px){
+  .bhero{flex-direction:column;align-items:stretch;gap:12px}
+  .bhero-ring{align-self:center}
+  .btiles{grid-template-columns:repeat(3,1fr);gap:7px}
+  .bt{padding:10px 4px 8px}
+  .bt-name{font-size:11px}
+}

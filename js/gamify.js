@@ -1,5 +1,5 @@
 // XP, seviye, seri ve rozet hesapları
-import { SUBJECTS, LEVEL_TITLES, BADGES, xpForLevel, XP_PER_OWN, XP_PER_TAUGHT } from './data.js';
+import { SUBJECTS, LEVEL_TITLES, BADGES, xpForLevel, XP_PER_OWN, XP_PER_TAUGHT, LEARNED_AT } from './data.js';
 import { keyOf, dateOf, addDays, todayKey, netOf, goalOf, weekStart, estimateScore } from './utils.js';
 
 /**
@@ -44,6 +44,43 @@ export function currentStreak(days) {
     if (n > 3650) break;
   }
   return n;
+}
+
+/** O gün yürürlükteki hedef tutturuldu mu? */
+const hitGoal = (state, key) => {
+  const goal = goalOf(state, key);
+  return goal > 0 && dayTotals(state.days[key]).q >= goal;
+};
+
+/** Bugüne kadar kesintisiz hedef serisi. Bugün henüz tutmadıysa dünden itibaren sayar. */
+export function currentGoalStreak(state) {
+  let cursor = new Date();
+  if (!hitGoal(state, keyOf(cursor))) cursor = addDays(cursor, -1);
+  let n = 0;
+  while (hitGoal(state, keyOf(cursor))) {
+    n++;
+    cursor = addDays(cursor, -1);
+    if (n > 3650) break;
+  }
+  return n;
+}
+
+/**
+ * Seri uyarısı: bugün çalışılmadıysa süren seri gece yarısı bozulur;
+ * bugün hedef tutmadıysa süren hedef serisi bozulur.
+ */
+export function streakRisk(state) {
+  const key = todayKey();
+  const t = dayTotals(state.days[key]);
+  const goal = goalOf(state, key);
+  const streak = currentStreak(state.days);
+  const goalStreak = currentGoalStreak(state);
+  return {
+    streak, goalStreak, todayQ: t.q, goal,
+    atRisk: streak > 0 && t.q === 0,
+    goalAtRisk: goalStreak > 0 && goal > 0 && t.q < goal,
+    goalLeft: Math.max(0, goal - t.q),
+  };
 }
 
 export function bestStreak(days) {
@@ -167,6 +204,10 @@ export function summarize(state) {
     examCount: state.exams.length,
     streak: currentStreak(days),
     bestStreak: bestStreak(days),
+    curGoalStreak: currentGoalStreak(state),
+    level: levelInfo(totalXp).level,
+    wordsAdded: (state.words || []).length,
+    wordsLearned: (state.words || []).filter(w => (w.ticks || 0) >= LEARNED_AT).length,
     accuracy: totalOwn > 0 ? (totalD / totalOwn) * 100 : 0,
     avgPerActiveDay: activeDays ? totalQ / activeDays : 0,
   };

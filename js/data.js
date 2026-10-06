@@ -38,11 +38,11 @@ export const xpForLevel = n => 20 * n * (n - 1);
  * bu yüzden açılan hediye kötü bir denemeyle tekrar kilitlenmez.
  */
 export const GIFT_KINDS = [
-  { key: 'net',       label: 'Deneme neti',        cond: t => `Bir denemede ${t} net yap` },
-  { key: 'score',     label: 'Tahmini LGS puanı',  cond: t => `Bir denemede ${t} puan al` },
-  { key: 'level',     label: 'Seviye',             cond: t => `Sv. ${t} ol` },
-  { key: 'questions', label: 'Toplam soru',        cond: t => `Toplam ${t} soru çöz` },
-  { key: 'streak',    label: 'Gün serisi',         cond: t => `${t} gün üst üste çalış` },
+  { key: 'net',       label: 'Deneme neti',        cond: t => `Bir denemede ${t} net yap`,   left: n => `${n} net kaldı` },
+  { key: 'score',     label: 'Tahmini LGS puanı',  cond: t => `Bir denemede ${t} puan al`,  left: n => `${n} puan kaldı` },
+  { key: 'level',     label: 'Seviye',             cond: t => `Sv. ${t} ol`,                left: n => `${n} seviye kaldı` },
+  { key: 'questions', label: 'Toplam soru',        cond: t => `Toplam ${t} soru çöz`,       left: n => `${n} soru kaldı` },
+  { key: 'streak',    label: 'Gün serisi',         cond: t => `${t} gün üst üste çalış`,    left: n => `${n} gün daha` },
 ];
 export const GIFT_KIND_MAP = Object.fromEntries(GIFT_KINDS.map(k => [k.key, k]));
 
@@ -71,120 +71,209 @@ export const typeLabel = key => {
 /** Bu kadar doğru bilince kelime "öğrenildi" sayılır */
 export const LEARNED_AT = 5;
 
-// Rozet grupları — rozetler ekranında bu sırayla başlıklara ayrılır
+// Rozet grupları — rozetler ekranında bu sırayla gösterilir
 export const BADGE_GROUPS = [
-  { key:'soru',   label:'Soru sayısı',   emoji:'✏️' },
-  { key:'seri',   label:'Süreklilik',    emoji:'🔥' },
-  { key:'hedef',  label:'Hedef',         emoji:'🎯' },
-  { key:'tempo',  label:'Tempo',         emoji:'⚡' },
-  { key:'ders',   label:'Ders ustalığı', emoji:'🎓' },
-  { key:'deneme', label:'Denemeler',     emoji:'📝' },
-  { key:'kitap',  label:'Kitaplar',      emoji:'📚' },
-  { key:'ogret',  label:'Öğretmek',      emoji:'🧑‍🏫' },
+  { key:'soru',    label:'Soru sayısı',   emoji:'✏️' },
+  { key:'seviye',  label:'Seviye',        emoji:'⭐' },
+  { key:'seri',    label:'Süreklilik',    emoji:'🔥' },
+  { key:'hedef',   label:'Hedef',         emoji:'🎯' },
+  { key:'tempo',   label:'Tempo',         emoji:'⚡' },
+  { key:'ders',    label:'Ders ustalığı', emoji:'🎓' },
+  { key:'deneme',  label:'Denemeler',     emoji:'📝' },
+  { key:'kitap',   label:'Kitaplar',      emoji:'📚' },
+  { key:'ogret',   label:'Öğretmek',      emoji:'🧑‍🏫' },
+  { key:'ingilizce', label:'İngilizce',   emoji:'🔤' },
 ];
 
+/** Bir ölçütün değerini okur. `per:turkce` gibi izler ders bazlı soru sayısıdır. */
+export const trackValue = (s, track) =>
+  track.startsWith('per:') ? (s.perSubject[track.slice(4)] || 0) : (s[track] || 0);
+
 /**
- * Sayaca dayalı rozet: hem "kazanıldı mı" testini hem de kilitliyken
- * gösterilecek ilerlemeyi (`[şuan, hedef]`) üretir.
+ * Sayaca dayalı rozet. `track` ölçütün adı (summarize alanı); aynı izdeki rozetler
+ * kolaydan zora bir merdiven oluşturur ve zorluk rengi bu sıradan çıkar.
+ * `show` verilirse kilitliyken ilerleme ondan gösterilir: seri rozetleri en iyi
+ * seriyi değil, şu an süren seriyi gösterir (kazanmak için onu sürdürmesi gerek).
  */
-const tier = (id, ico, name, desc, group, pick, target) => ({
-  id, ico, name, desc, group,
-  test: s => pick(s) >= target,
-  progress: s => [Math.min(Math.floor(pick(s)), target), target],
+const tier = (id, ico, name, desc, group, track, target, show) => ({
+  id, ico, name, desc, group, track, target,
+  test: s => trackValue(s, track) >= target,
+  progress: s => [Math.min(Math.floor(show ? trackValue(s, show) : trackValue(s, track)), target), target],
+  live: show || null,
 });
 
 /** Evet/hayır rozeti — ilerleme çubuğu yok */
-const flag = (id, ico, name, desc, group, pick) => ({ id, ico, name, desc, group, test: s => !!pick(s) });
+const flag = (id, ico, name, desc, group, pick) => ({ id, ico, name, desc, group, track: null, test: s => !!pick(s) });
 
-const subjQ = key => s => s.perSubject[key] || 0;
+const SUBJ_NAMES = {
+  turkce: 'Türkçede', matematik: 'Matematikte', fen: 'Fende',
+  inkilap: 'İnkılapta', ingilizce: 'İngilizcede', din: 'Din Kültüründe',
+};
+const nf = n => n.toLocaleString('tr-TR');
 
 export const BADGES = [
   /* ---- soru sayısı ---- */
-  tier('ilk',         '🌱', 'İlk Adım',        'İlk soruyu çöz',      'soru', s => s.totalQ, 1),
-  tier('yuz',         '💯', 'Yüzler Kulübü',   '100 soru çöz',        'soru', s => s.totalQ, 100),
-  tier('besyuz',      '🎯', 'Nişancı',         '500 soru çöz',        'soru', s => s.totalQ, 500),
-  tier('bin',         '🚀', 'Bin Soru',        '1000 soru çöz',       'soru', s => s.totalQ, 1000),
-  tier('ikibucukbin', '🌠', 'Yol Alıyor',      '2500 soru çöz',       'soru', s => s.totalQ, 2500),
-  tier('besbin',      '👑', 'Soru Kraliçesi',  '5000 soru çöz',       'soru', s => s.totalQ, 5000),
-  tier('onbin',       '💎', 'On Bin',          '10.000 soru çöz',     'soru', s => s.totalQ, 10000),
-  tier('yirmibesbin', '🏵️', 'Yirmi Beş Bin',   '25.000 soru çöz',     'soru', s => s.totalQ, 25000),
-  tier('ellibin',     '🦄', 'Efsane',          '50.000 soru çöz',     'soru', s => s.totalQ, 50000),
+  tier('ilk',         '🌱', 'İlk Adım',         'İlk soruyu çöz',        'soru', 'totalQ', 1),
+  tier('elli',        '🌿', 'Isınıyor',         '50 soru çöz',           'soru', 'totalQ', 50),
+  tier('yuz',         '💯', 'Yüzler Kulübü',    '100 soru çöz',          'soru', 'totalQ', 100),
+  tier('ikiyuzelli',  '🍀', 'Çeyrek Bin',       '250 soru çöz',          'soru', 'totalQ', 250),
+  tier('besyuz',      '🎯', 'Nişancı',          '500 soru çöz',          'soru', 'totalQ', 500),
+  tier('yediyuzelli', '🎈', 'Yükselişte',       '750 soru çöz',          'soru', 'totalQ', 750),
+  tier('bin',         '🚀', 'Bin Soru',         '1000 soru çöz',         'soru', 'totalQ', 1000),
+  tier('binbesyuz',   '🛸', 'Yörüngede',        '1500 soru çöz',         'soru', 'totalQ', 1500),
+  tier('ikibin',      '🌙', 'İki Bin',          '2000 soru çöz',         'soru', 'totalQ', 2000),
+  tier('ikibucukbin', '🌠', 'Yol Alıyor',       '2500 soru çöz',         'soru', 'totalQ', 2500),
+  tier('ucbin',       '🪐', 'Üç Bin',           '3000 soru çöz',         'soru', 'totalQ', 3000),
+  tier('dortbin',     '☀️', 'Dört Bin',         '4000 soru çöz',         'soru', 'totalQ', 4000),
+  tier('besbin',      '👑', 'Soru Kraliçesi',   '5000 soru çöz',         'soru', 'totalQ', 5000),
+  tier('yedibinbesyuz','🎆', 'Havai Fişek',     '7500 soru çöz',         'soru', 'totalQ', 7500),
+  tier('onbin',       '💎', 'On Bin',           '10.000 soru çöz',       'soru', 'totalQ', 10000),
+  tier('onbesbin',    '🔮', 'On Beş Bin',       '15.000 soru çöz',       'soru', 'totalQ', 15000),
+  tier('yirmibin',    '🏰', 'Yirmi Bin',        '20.000 soru çöz',       'soru', 'totalQ', 20000),
+  tier('yirmibesbin', '🏵️', 'Yirmi Beş Bin',    '25.000 soru çöz',       'soru', 'totalQ', 25000),
+  tier('otuzbin',     '🌌', 'Otuz Bin',         '30.000 soru çöz',       'soru', 'totalQ', 30000),
+  tier('ellibin',     '🦄', 'Efsane',           '50.000 soru çöz',       'soru', 'totalQ', 50000),
+  tier('yetmisbesbin','🐉', 'Ejderha',          '75.000 soru çöz',       'soru', 'totalQ', 75000),
+  tier('yuzbin',      '🏆', 'Yüz Bin',          '100.000 soru çöz',      'soru', 'totalQ', 100000),
 
-  /* ---- süreklilik ---- */
-  tier('seri3',    '🔥', 'Isınma Turu',    '3 gün üst üste çalış',    'seri', s => s.bestStreak, 3),
-  tier('seri7',    '⚡', 'Tam Hafta',      '7 gün üst üste çalış',    'seri', s => s.bestStreak, 7),
-  tier('seri14',   '🌙', 'İki Hafta',      '14 gün üst üste çalış',   'seri', s => s.bestStreak, 14),
-  tier('seri30',   '🏔️', 'Ay Boyunca',     '30 gün üst üste çalış',   'seri', s => s.bestStreak, 30),
-  tier('seri50',   '❄️', 'Elli Gün',       '50 gün üst üste çalış',   'seri', s => s.bestStreak, 50),
-  tier('seri100',  '🌟', 'Yüz Gün',        '100 gün üst üste çalış',  'seri', s => s.bestStreak, 100),
-  tier('seri180',  '🛡️', 'Yarım Yıl',      '180 gün üst üste çalış',  'seri', s => s.bestStreak, 180),
-  tier('seri365',  '🗓️', 'Tam Yıl',        '365 gün üst üste çalış',  'seri', s => s.bestStreak, 365),
-  tier('gun100',   '📅', 'Yüz Gün Emek',   '100 gün çalış',           'seri', s => s.activeDays, 100),
-  tier('gun250',   '📆', 'İki Yüz Elli',   '250 gün çalış',           'seri', s => s.activeDays, 250),
-  tier('hafta10',  '🍀', 'On Hafta',       '10 farklı hafta çalış',   'seri', s => s.activeWeeks, 10),
-  tier('hafta30',  '🌿', 'Otuz Hafta',     '30 farklı hafta çalış',   'seri', s => s.activeWeeks, 30),
-  tier('ay6',      '🌗', 'Altı Ay',        '6 farklı ay çalış',       'seri', s => s.activeMonths, 6),
-  tier('ay12',     '🌕', 'On İki Ay',      '12 farklı ay çalış',      'seri', s => s.activeMonths, 12),
+  /* ---- seviye ---- */
+  tier('sv5',  '⭐', 'Net Ustası',       'Sv. 5 ol',  'seviye', 'level', 5),
+  tier('sv10', '🌟', 'LGS Kahramanı',    'Sv. 10 ol', 'seviye', 'level', 10),
+  tier('sv15', '✨', 'Parlayan Yıldız',  'Sv. 15 ol', 'seviye', 'level', 15),
+  tier('sv20', '💫', 'Yıldız Tozu',      'Sv. 20 ol', 'seviye', 'level', 20),
+  tier('sv25', '🌠', 'Kayan Yıldız',     'Sv. 25 ol', 'seviye', 'level', 25),
+  tier('sv30', '🌞', 'Güneş',            'Sv. 30 ol', 'seviye', 'level', 30),
+  tier('sv40', '🌌', 'Galaksi',          'Sv. 40 ol', 'seviye', 'level', 40),
+  tier('sv50', '👑', 'Seviye Kraliçesi', 'Sv. 50 ol', 'seviye', 'level', 50),
+
+  /* ---- süreklilik (seri rozetleri şu an süren seriyi gösterir) ---- */
+  tier('seri3',    '🔥', 'Isınma Turu',    '3 gün üst üste çalış',    'seri', 'bestStreak', 3,   'streak'),
+  tier('seri7',    '⚡', 'Tam Hafta',      '7 gün üst üste çalış',    'seri', 'bestStreak', 7,   'streak'),
+  tier('seri14',   '🌙', 'İki Hafta',      '14 gün üst üste çalış',   'seri', 'bestStreak', 14,  'streak'),
+  tier('seri30',   '🏔️', 'Ay Boyunca',     '30 gün üst üste çalış',   'seri', 'bestStreak', 30,  'streak'),
+  tier('seri50',   '❄️', 'Elli Gün',       '50 gün üst üste çalış',   'seri', 'bestStreak', 50,  'streak'),
+  tier('seri100',  '🌟', 'Yüz Gün',        '100 gün üst üste çalış',  'seri', 'bestStreak', 100, 'streak'),
+  tier('seri180',  '🛡️', 'Yarım Yıl',      '180 gün üst üste çalış',  'seri', 'bestStreak', 180, 'streak'),
+  tier('seri365',  '🗓️', 'Tam Yıl',        '365 gün üst üste çalış',  'seri', 'bestStreak', 365, 'streak'),
+  tier('gun100',   '📅', 'Yüz Gün Emek',   '100 gün çalış',           'seri', 'activeDays', 100),
+  tier('gun250',   '📆', 'İki Yüz Elli',   '250 gün çalış',           'seri', 'activeDays', 250),
+  tier('hafta10',  '🍀', 'On Hafta',       '10 farklı hafta çalış',   'seri', 'activeWeeks', 10),
+  tier('hafta30',  '🌿', 'Otuz Hafta',     '30 farklı hafta çalış',   'seri', 'activeWeeks', 30),
+  tier('ay6',      '🌗', 'Altı Ay',        '6 farklı ay çalış',       'seri', 'activeMonths', 6),
+  tier('ay12',     '🌕', 'On İki Ay',      '12 farklı ay çalış',      'seri', 'activeMonths', 12),
 
   /* ---- hedef ---- */
-  tier('hedef5',      '🏅', 'Hedef Avcısı',   '5 kez günlük hedefi tuttur',   'hedef', s => s.goalDays, 5),
-  tier('hedef20',     '🎖️', 'Kararlı',        '20 kez günlük hedefi tuttur',  'hedef', s => s.goalDays, 20),
-  tier('hedef50',     '🥇', 'Hedef Ustası',   '50 kez günlük hedefi tuttur',  'hedef', s => s.goalDays, 50),
-  tier('hedef100',    '🧭', 'Yolunu Bilen',   '100 kez günlük hedefi tuttur', 'hedef', s => s.goalDays, 100),
-  tier('hedefseri7',  '🎗️', 'Hedefli Hafta',  '7 gün üst üste hedefi tuttur', 'hedef', s => s.goalStreak, 7),
-  tier('hedefseri30', '🪄', 'Hedefli Ay',     '30 gün üst üste hedefi tuttur','hedef', s => s.goalStreak, 30),
+  tier('hedef5',      '🏅', 'Hedef Avcısı',   '5 kez günlük hedefi tuttur',     'hedef', 'goalDays', 5),
+  tier('hedef20',     '🎖️', 'Kararlı',        '20 kez günlük hedefi tuttur',    'hedef', 'goalDays', 20),
+  tier('hedef50',     '🥇', 'Hedef Ustası',   '50 kez günlük hedefi tuttur',    'hedef', 'goalDays', 50),
+  tier('hedef100',    '🧭', 'Yolunu Bilen',   '100 kez günlük hedefi tuttur',   'hedef', 'goalDays', 100),
+  tier('hedef200',    '🗺️', 'Pusula',         '200 kez günlük hedefi tuttur',   'hedef', 'goalDays', 200),
+  tier('hedefseri7',  '🎗️', 'Hedefli Hafta',  '7 gün üst üste hedefi tuttur',   'hedef', 'goalStreak', 7,   'curGoalStreak'),
+  tier('hedefseri14', '🎀', 'Hedefli İki Hafta','14 gün üst üste hedefi tuttur', 'hedef', 'goalStreak', 14,  'curGoalStreak'),
+  tier('hedefseri30', '🪄', 'Hedefli Ay',     '30 gün üst üste hedefi tuttur',  'hedef', 'goalStreak', 30,  'curGoalStreak'),
+  tier('hedefseri60', '🔱', 'Hedef Makinesi', '60 gün üst üste hedefi tuttur',  'hedef', 'goalStreak', 60,  'curGoalStreak'),
+  tier('hedefseri100','🏹', 'Hiç Şaşmaz',     '100 gün üst üste hedefi tuttur', 'hedef', 'goalStreak', 100, 'curGoalStreak'),
 
   /* ---- tempo ---- */
-  tier('maraton',   '🦾', 'Maratoncu',              'Bir günde 150 soru',           'tempo', s => s.bestDay, 150),
-  tier('tempo200',  '🌪️', 'Fırtına',                'Bir günde 200 soru',           'tempo', s => s.bestDay, 200),
-  tier('tempo300',  '🚴', 'Sınır Tanımaz',          'Bir günde 300 soru',           'tempo', s => s.bestDay, 300),
-  tier('haftasonu', '🌞', 'Hafta Sonu Kahramanı',   'Hafta sonu bir günde 150 soru','tempo', s => s.bestWeekendDay, 150),
-  tier('hafta500',  '🎡', 'Dolu Hafta',             'Bir haftada 500 soru',         'tempo', s => s.bestWeek, 500),
-  tier('hafta1000', '🎢', 'Bin Soruluk Hafta',      'Bir haftada 1000 soru',        'tempo', s => s.bestWeek, 1000),
-  tier('ay2000',    '🌋', 'Verimli Ay',             'Bir ayda 2000 soru',           'tempo', s => s.bestMonth, 2000),
-  tier('ay4000',    '☄️', 'Muhteşem Ay',            'Bir ayda 4000 soru',           'tempo', s => s.bestMonth, 4000),
-  tier('keskin',    '🔎', 'Keskin Nişancı',         'Bir günde %90 doğruluk',       'tempo', s => s.bestAccuracy, 90),
-  tier('keskin95',  '🧿', 'Kusursuz',               'Bir günde %95 doğruluk',       'tempo', s => s.bestAccuracy, 95),
+  tier('tempo100',  '🏃', 'Hızlanıyor',             'Bir günde 100 soru',           'tempo', 'bestDay', 100),
+  tier('maraton',   '🦾', 'Maratoncu',              'Bir günde 150 soru',           'tempo', 'bestDay', 150),
+  tier('tempo200',  '🌪️', 'Fırtına',                'Bir günde 200 soru',           'tempo', 'bestDay', 200),
+  tier('tempo300',  '🚴', 'Sınır Tanımaz',          'Bir günde 300 soru',           'tempo', 'bestDay', 300),
+  tier('tempo400',  '🏎️', 'Formula',                'Bir günde 400 soru',           'tempo', 'bestDay', 400),
+  tier('tempo500',  '🚄', 'Hızlı Tren',             'Bir günde 500 soru',           'tempo', 'bestDay', 500),
+  tier('haftasonu', '🌞', 'Hafta Sonu Kahramanı',   'Hafta sonu bir günde 150 soru','tempo', 'bestWeekendDay', 150),
+  tier('hafta500',  '🎡', 'Dolu Hafta',             'Bir haftada 500 soru',         'tempo', 'bestWeek', 500),
+  tier('hafta1000', '🎢', 'Bin Soruluk Hafta',      'Bir haftada 1000 soru',        'tempo', 'bestWeek', 1000),
+  tier('hafta1500', '🎠', 'Lunapark',               'Bir haftada 1500 soru',        'tempo', 'bestWeek', 1500),
+  tier('hafta2000', '🚀', 'Roket Hafta',            'Bir haftada 2000 soru',        'tempo', 'bestWeek', 2000),
+  tier('ay2000',    '🌋', 'Verimli Ay',             'Bir ayda 2000 soru',           'tempo', 'bestMonth', 2000),
+  tier('ay4000',    '☄️', 'Muhteşem Ay',            'Bir ayda 4000 soru',           'tempo', 'bestMonth', 4000),
+  tier('ay6000',    '🌊', 'Dev Dalga',              'Bir ayda 6000 soru',           'tempo', 'bestMonth', 6000),
+  tier('keskin',    '🔎', 'Keskin Nişancı',         'Bir günde %90 doğruluk',       'tempo', 'bestAccuracy', 90),
+  tier('keskin95',  '🧿', 'Kusursuz',               'Bir günde %95 doğruluk',       'tempo', 'bestAccuracy', 95),
   flag('tumders',   '🌈', 'Her Şeyden Biraz',       'Bir günde 6 dersi de çalış',   'tempo', s => s.allSixDay),
-  tier('tumders7',  '🧩', 'Denge Ustası',           '7 kez bir günde 6 dersi çalış','tempo', s => s.sixSubjectDays, 7),
+  tier('tumders7',  '🧩', 'Denge Ustası',           '7 kez bir günde 6 dersi çalış','tempo', 'sixSubjectDays', 7),
 
   /* ---- ders ustalığı ---- */
-  tier('turkce500',    '📚', 'Türkçe Dostu',        'Türkçede 500 soru',      'ders', subjQ('turkce'), 500),
-  tier('turkce2000',   '✒️', 'Türkçe Ustası',       'Türkçede 2000 soru',     'ders', subjQ('turkce'), 2000),
-  tier('mat500',       '📐', 'Matematikçi',         'Matematikte 500 soru',   'ders', subjQ('matematik'), 500),
-  tier('mat2000',      '🧮', 'Matematik Ustası',    'Matematikte 2000 soru',  'ders', subjQ('matematik'), 2000),
-  tier('fen500',       '🔬', 'Fen Meraklısı',       'Fende 500 soru',         'ders', subjQ('fen'), 500),
-  tier('fen2000',      '⚗️', 'Fen Ustası',          'Fende 2000 soru',        'ders', subjQ('fen'), 2000),
-  tier('inkilap500',   '🏛️', 'İnkılap Bilgini',     'İnkılapta 500 soru',     'ders', subjQ('inkilap'), 500),
-  tier('inkilap2000',  '🗿', 'İnkılap Ustası',      'İnkılapta 2000 soru',    'ders', subjQ('inkilap'), 2000),
-  tier('ingilizce500', '🌍', 'İngilizce Dostu',     'İngilizcede 500 soru',   'ders', subjQ('ingilizce'), 500),
-  tier('ingilizce2000','🗽', 'İngilizce Ustası',    'İngilizcede 2000 soru',  'ders', subjQ('ingilizce'), 2000),
-  tier('din500',       '🕌', 'Din Kültürü Dostu',   'Din Kültüründe 500 soru','ders', subjQ('din'), 500),
-  tier('din2000',      '🕋', 'Din Kültürü Ustası',  'Din Kültüründe 2000 soru','ders', subjQ('din'), 2000),
+  ...[
+    ['turkce',    ['📚','Türkçe Dostu'],      ['✒️','Türkçe Ustası'],      ['📜','Türkçe Bilgesi'],      ['🖋️','Türkçe Efsanesi']],
+    ['matematik', ['📐','Matematikçi'],       ['🧮','Matematik Ustası'],   ['📊','Matematik Bilgesi'],   ['♾️','Matematik Efsanesi']],
+    ['fen',       ['🔬','Fen Meraklısı'],     ['⚗️','Fen Ustası'],         ['🧬','Fen Bilgesi'],         ['🔭','Fen Efsanesi']],
+    ['inkilap',   ['🏛️','İnkılap Bilgini'],   ['🗿','İnkılap Ustası'],     ['🎖️','Tarih Bilgesi'],       ['🇹🇷','Tarih Efsanesi']],
+    ['ingilizce', ['🌍','İngilizce Dostu'],   ['🗽','İngilizce Ustası'],   ['🎡','İngilizce Bilgesi'],   ['💂','İngilizce Efsanesi']],
+    ['din',       ['🕌','Din Kültürü Dostu'], ['🕋','Din Kültürü Ustası'], ['📿','Din Kültürü Bilgesi'], ['🌙','Din Kültürü Efsanesi']],
+  ].flatMap(([key, ...ranks]) => {
+    // ilk ikisinin kimlikleri eski sürümden: kazanılmış rozetler korunur
+    const ids = { turkce:'turkce', matematik:'mat', fen:'fen', inkilap:'inkilap', ingilizce:'ingilizce', din:'din' };
+    return [500, 1000, 2000, 5000].map((n, i) => tier(
+      `${ids[key]}${n}`, ranks[[0, 2, 1, 3][i]][0], ranks[[0, 2, 1, 3][i]][1],
+      `${SUBJ_NAMES[key]} ${nf(n)} soru`, 'ders', `per:${key}`, n));
+  }),
 
   /* ---- denemeler ---- */
-  tier('deneme1',  '📝', 'İlk Deneme',      'İlk denemeni gir',           'deneme', s => s.examCount, 1),
-  tier('deneme10', '🏆', 'Deneme Canavarı', '10 deneme gir',              'deneme', s => s.examCount, 10),
-  tier('deneme25', '🎟️', 'Deneme Ustası',   '25 deneme gir',              'deneme', s => s.examCount, 25),
-  tier('deneme50', '🎊', 'Yarım Yüz',       '50 deneme gir',              'deneme', s => s.examCount, 50),
-  tier('puan400',  '🎓', 'Dört Yüzlük',     'Bir denemede 400+ puan',     'deneme', s => s.bestExamScore, 400),
-  tier('puan450',  '🧠', 'Zirve',           'Bir denemede 450+ puan',     'deneme', s => s.bestExamScore, 450),
-  tier('net70',    '⚖️', 'Net Avcısı',      'Bir denemede 70 net yap',    'deneme', s => s.bestExamNet, 70),
+  tier('deneme1',  '📝', 'İlk Deneme',      'İlk denemeni gir',         'deneme', 'examCount', 1),
+  tier('deneme5',  '🗒️', 'Isındım',         '5 deneme gir',             'deneme', 'examCount', 5),
+  tier('deneme10', '🏆', 'Deneme Canavarı', '10 deneme gir',            'deneme', 'examCount', 10),
+  tier('deneme25', '🎟️', 'Deneme Ustası',   '25 deneme gir',            'deneme', 'examCount', 25),
+  tier('deneme50', '🎊', 'Yarım Yüz',       '50 deneme gir',            'deneme', 'examCount', 50),
+  tier('deneme100','🏟️', 'Deneme Efsanesi', '100 deneme gir',           'deneme', 'examCount', 100),
+  tier('net50',    '📏', 'Elli Net',        'Bir denemede 50 net yap',  'deneme', 'bestExamNet', 50),
+  tier('net60',    '📐', 'Altmış Net',      'Bir denemede 60 net yap',  'deneme', 'bestExamNet', 60),
+  tier('net70',    '⚖️', 'Net Avcısı',      'Bir denemede 70 net yap',  'deneme', 'bestExamNet', 70),
+  tier('net80',    '🎯', 'Seksen Net',      'Bir denemede 80 net yap',  'deneme', 'bestExamNet', 80),
+  tier('net90',    '💯', 'Doksan Net',      'Bir denemede 90 net yap',  'deneme', 'bestExamNet', 90),
+  tier('puan400',  '🎓', 'Dört Yüzlük',     'Bir denemede 400+ puan',   'deneme', 'bestExamScore', 400),
+  tier('puan450',  '🧠', 'Zirve',           'Bir denemede 450+ puan',   'deneme', 'bestExamScore', 450),
+  tier('puan480',  '🥇', 'Şampiyon',        'Bir denemede 480+ puan',   'deneme', 'bestExamScore', 480),
+  tier('puan500',  '👑', 'Tam Puan',        'Bir denemede 500 puan',    'deneme', 'bestExamScore', 500),
 
   /* ---- kitaplar ---- */
-  tier('kitap1',      '📕', 'İlk Kitap',      'İlk kitabını ekle',      'kitap', s => s.bookCount, 1),
-  tier('kutuphane',   '📗', 'Kütüphaneci',    '5 kitap ekle',           'kitap', s => s.bookCount, 5),
-  tier('kitap10',     '📘', 'Koleksiyoner',   '10 kitap ekle',          'kitap', s => s.bookCount, 10),
-  tier('kitapbitti',  '🏁', 'Kapak Attım',    'Bir kitabı bitir',       'kitap', s => s.booksFinished, 1),
-  tier('kitapbitti5', '🏫', 'Kapak Ustası',   '5 kitabı bitir',         'kitap', s => s.booksFinished, 5),
-  tier('unite50',     '✔️', 'Üniteci',        '50 üniteyi tamamla',     'kitap', s => s.unitsDone, 50),
-  tier('unite200',    '✅', 'Ünite Ustası',   '200 üniteyi tamamla',    'kitap', s => s.unitsDone, 200),
+  tier('kitap1',      '📕', 'İlk Kitap',      'İlk kitabını ekle',      'kitap', 'bookCount', 1),
+  tier('kutuphane',   '📗', 'Kütüphaneci',    '5 kitap ekle',           'kitap', 'bookCount', 5),
+  tier('kitap10',     '📘', 'Koleksiyoner',   '10 kitap ekle',          'kitap', 'bookCount', 10),
+  tier('kitapbitti',  '🏁', 'Kapak Attım',    'Bir kitabı bitir',       'kitap', 'booksFinished', 1),
+  tier('kitapbitti5', '🏫', 'Kapak Ustası',   '5 kitabı bitir',         'kitap', 'booksFinished', 5),
+  tier('unite50',     '✔️', 'Üniteci',        '50 üniteyi tamamla',     'kitap', 'unitsDone', 50),
+  tier('unite200',    '✅', 'Ünite Ustası',   '200 üniteyi tamamla',    'kitap', 'unitsDone', 200),
 
   /* ---- öğretmek ---- */
-  tier('sorduran',     '🧑‍🏫', 'Sormaktan Korkmaz', '100 soru çözdür',   'ogret', s => s.totalTaught, 100),
-  tier('sorduran500',  '👩‍🏫', 'Öğreten Eller',     '500 soru çözdür',   'ogret', s => s.totalTaught, 500),
-  tier('sorduran1000', '🗣️', 'Akran Öğretmeni',   '1000 soru çözdür',  'ogret', s => s.totalTaught, 1000),
+  tier('sorduran50',   '🤝', 'Yardımsever',       '50 soru çözdür',    'ogret', 'totalTaught', 50),
+  tier('sorduran',     '🧑‍🏫', 'Sormaktan Korkmaz', '100 soru çözdür',   'ogret', 'totalTaught', 100),
+  tier('sorduran500',  '👩‍🏫', 'Öğreten Eller',     '500 soru çözdür',   'ogret', 'totalTaught', 500),
+  tier('sorduran1000', '🗣️', 'Akran Öğretmeni',   '1000 soru çözdür',  'ogret', 'totalTaught', 1000),
+  tier('sorduran2500', '🏫', 'Sınıf Öğretmeni',   '2500 soru çözdür',  'ogret', 'totalTaught', 2500),
+  tier('sorduran5000', '🦉', 'Bilge Baykuş',      '5000 soru çözdür',  'ogret', 'totalTaught', 5000),
+
+  /* ---- İngilizce kelimeler ---- */
+  tier('kelime50',   '🔤', 'Kelime Toplayıcı', '50 kelime ekle',     'ingilizce', 'wordsAdded', 50),
+  tier('kelime200',  '📒', 'Kelime Defteri',   '200 kelime ekle',    'ingilizce', 'wordsAdded', 200),
+  tier('kelime500',  '📖', 'Sözlük',           '500 kelime ekle',    'ingilizce', 'wordsAdded', 500),
+  tier('ogrendi25',  '💬', 'Konuşmaya Başladı','25 kelime öğren',    'ingilizce', 'wordsLearned', 25),
+  tier('ogrendi100', '🗨️', 'Akıcı',            '100 kelime öğren',   'ingilizce', 'wordsLearned', 100),
+  tier('ogrendi300', '🇬🇧', 'Native Speaker',   '300 kelime öğren',   'ingilizce', 'wordsLearned', 300),
 ];
+
+/**
+ * Zorluk rengi: aynı izdeki (ör. totalQ) rozetler arasındaki sırası.
+ * bronz → gümüş → altın → elmas; tek rozetli izler bronz.
+ */
+export const RARITY = { bronze: 'Bronz', silver: 'Gümüş', gold: 'Altın', diamond: 'Elmas' };
+const rarityOf = (() => {
+  const tracks = new Map();
+  for (const b of BADGES) {
+    if (!b.track) continue;
+    if (!tracks.has(b.track)) tracks.set(b.track, []);
+    tracks.get(b.track).push(b.target);
+  }
+  return b => {
+    if (!b.track) return 'silver';
+    const list = [...tracks.get(b.track)].sort((x, y) => x - y);
+    if (list.length < 2) return 'silver';
+    const r = list.indexOf(b.target) / (list.length - 1);
+    return r >= 0.99 ? 'diamond' : r >= 0.6 ? 'gold' : r >= 0.3 ? 'silver' : 'bronze';
+  };
+})();
+BADGES.forEach(b => { b.rarity = rarityOf(b); });
 
 export const MOTIVATION = [
   'Bugün de bir adım daha! 🌸','Her soru seni zirveye yaklaştırıyor ⛰️','Küçük adımlar büyük sonuçlar getirir ✨',

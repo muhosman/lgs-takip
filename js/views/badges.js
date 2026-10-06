@@ -1,156 +1,231 @@
-// "Rozetler" ekranı — kazanılan ve kilitli rozetler, kategori kategori
-import { BADGES, BADGE_GROUPS, GIFT_KIND_MAP } from '../data.js';
+// "Rozetler" ekranı — özet, sıradakiler, filtreler, grup merdivenleri ve rozet detayı
+import { BADGES, BADGE_GROUPS, RARITY } from '../data.js';
 import * as store from '../store.js';
-import { summarize, earnedBadges, giftProgress } from '../gamify.js';
-import { esc, fmtNet } from '../utils.js';
-import { confetti } from '../confetti.js';
+import { summarize, earnedBadges, streakRisk } from '../gamify.js';
+import { esc } from '../utils.js';
+import { ring } from '../charts.js';
 
-const condText = g => (GIFT_KIND_MAP[g.kind]?.cond || (t => `${t}`))(g.target);
-const fmtCur = (g, cur) => g.kind === 'net' ? fmtNet(Math.min(cur, g.target)) : Math.min(Math.floor(cur), g.target);
+// Ekran durumu: sekme değişse de son seçilen filtre ve grup kalsın
+let filter = 'all';      // 'all' | 'earned' | 'next'
+let group = 'all';       // 'all' | BADGE_GROUPS[].key
 
-/**
- * Hediye satırı. Üç hâl:
- *  kilitli  → soluk kutu, yalnız koşul ve ilerleme (ne olduğu gizli)
- *  hazır    → sallanan kutu, dokununca açılır
- *  açılmış  → hediyenin adı ve teslim durumu
- */
-function giftRow(g, st, opened) {
-  const p = giftProgress(g, st);
-  if (!p.unlocked) {
-    const pct = p.target > 0 ? Math.min(100, (p.cur / p.target) * 100) : 0;
-    return `
-    <div class="gift locked">
-      <div class="gift-box">🎁</div>
-      <div class="gift-body">
-        <div class="gift-cond">${esc(condText(g))}</div>
-        <div class="badge-prog gift-prog">
-          <span class="badge-prog-bar"><i style="width:${pct}%"></i></span>
-          <span class="badge-prog-txt">${fmtCur(g, p.cur)}/${g.target}</span>
-        </div>
-      </div>
-    </div>`;
+const nf = n => Number(n).toLocaleString('tr-TR');
+
+/** Rozet durumu: kazanıldı mı, ilerleme, ve izindeki sıradaki rozet mi */
+function badgeStates(st) {
+  const earned = new Set(earnedBadges(st));
+  const nextOfTrack = new Set();
+  const seenTrack = new Set();
+  for (const b of BADGES) {                       // veri kolaydan zora sıralı
+    if (!b.track || earned.has(b.id) || seenTrack.has(b.track)) continue;
+    seenTrack.add(b.track);
+    nextOfTrack.add(b.id);
   }
-  if (!opened[g.id]) {
-    return `
-    <button type="button" class="gift ready" data-opengift="${g.id}">
-      <div class="gift-box">🎁</div>
-      <div class="gift-body">
-        <div class="gift-name">Hediyen hazır!</div>
-        <div class="gift-cond">${esc(condText(g))} ✓ · açmak için dokun</div>
-      </div>
-    </button>`;
+  return BADGES.map(b => {
+    const has = earned.has(b.id);
+    const [cur, target] = typeof b.progress === 'function' ? b.progress(st) : [has ? 1 : 0, 1];
+    return { b, has, cur, target, ratio: target ? cur / target : 0, isNext: !b.track ? !has : nextOfTrack.has(b.id) };
+  });
+}
+
+/* ---------------- seri uyarısı ---------------- */
+export function streakWarning(state, { compact = false } = {}) {
+  const r = streakRisk(state);
+  if (!r.atRisk && !r.goalAtRisk) return '';
+  const late = new Date().getHours() >= 20;
+  const lines = [];
+  if (r.atRisk) {
+    lines.push(`🔥 <b>${r.streak} günlük serin</b> tehlikede! Bugün en az 1 soru gir, seri bozulmasın.`);
+  }
+  if (r.goalAtRisk) {
+    lines.push(`🎯 <b>${r.goalStreak} gündür</b> hedefini tutturuyorsun. Seri sürsün diye bugün <b>${r.goalLeft}</b> soru daha.`);
+  }
+  // sıradaki seri rozeti: kazanmak için bu seriyi sürdürmesi gerek
+  if (!compact) {
+    const st = summarize(state);
+    const nextBadge = BADGES.find(b => b.live === 'streak' && !b.test(st));
+    if (r.atRisk && nextBadge) {
+      lines.push(`<span class="warn-sub">${nextBadge.ico} ${esc(nextBadge.name)} rozetine ${nextBadge.target - r.streak} gün kaldı</span>`);
+    }
   }
   return `
-  <div class="gift opened">
-    <div class="gift-box">${g.delivered ? '💝' : '🎉'}</div>
-    <div class="gift-body">
-      <div class="gift-name">${esc(g.name)}</div>
-      <div class="gift-cond">${esc(condText(g))} ✓</div>
+  <div class="streak-warn ${late ? 'late' : ''}" role="status">
+    <div class="streak-warn-ico">${late ? '⏰' : '⚠️'}</div>
+    <div class="streak-warn-txt">${lines.join('<br>')}</div>
+  </div>`;
+}
+
+/* ---------------- parçalar ---------------- */
+function tile(x, risk) {
+  const { b, has, cur, target, isNext } = x;
+  const state = has ? 'earned' : isNext ? 'next' : 'far';
+  const pct = Math.min(100, x.ratio * 100);
+  const danger = !has && b.live === 'streak' && risk.atRisk
+              || !has && b.live === 'curGoalStreak' && risk.goalAtRisk;
+  return `
+  <button type="button" class="bt ${state} r-${b.rarity} ${danger ? 'danger' : ''}" data-badge="${b.id}">
+    <span class="bt-ico">${has || isNext ? b.ico : '🔒'}</span>
+    <span class="bt-name">${esc(b.name)}</span>
+    ${!has && typeof b.progress === 'function' && isNext ? `
+      <span class="bt-bar"><i style="width:${pct}%"></i></span>
+      <span class="bt-num">${nf(cur)}/${nf(target)}</span>` : `<span class="bt-desc">${esc(b.desc)}</span>`}
+  </button>`;
+}
+
+function groupCard(g, items, risk) {
+  const got = items.filter(x => x.has).length;
+  const all = BADGES.filter(b => b.group === g.key).length;
+  return `
+  <section class="bgroup">
+    <div class="bgroup-head">
+      <span class="bgroup-title">${g.emoji} ${esc(g.label)}</span>
+      <span class="bgroup-count">${got}/${all}</span>
     </div>
-    <span class="gift-state ${g.delivered ? 'done' : ''}">${g.delivered ? 'Teslim edildi ✓' : 'Teslim bekliyor'}</span>
-  </div>`;
+    <span class="bgroup-bar"><i style="width:${all ? (got / all) * 100 : 0}%"></i></span>
+    <div class="btiles">${items.map(x => tile(x, risk)).join('')}</div>
+  </section>`;
 }
 
-function giftsSection(state, st) {
-  const gifts = state.gifts || [];
-  if (!gifts.length) return '';
-  const opened = state.openedGifts || {};
-  // hazırlar, sonra teslim bekleyen açılmışlar, sonra en yakın kilitliler, en sonda teslim edilenler
-  // (açılan kutu yerinde kalsın, aşağı kaymasın)
-  const rank = g => {
-    const p = giftProgress(g, st);
-    if (p.unlocked && !opened[g.id]) return -3;
-    if (p.unlocked) return g.delivered ? 1 : -2;
-    return -(p.target ? p.cur / p.target : 0);
+function listHtml(states, risk) {
+  let pool = states;
+  if (group !== 'all') pool = pool.filter(x => x.b.group === group);
+
+  if (filter === 'next') {
+    // kazanmaya en yakınlar tek listede, oran sırasıyla
+    const list = pool.filter(x => !x.has && x.isNext).sort((a, b) => b.ratio - a.ratio);
+    return list.length
+      ? `<div class="bgroup"><div class="btiles">${list.map(x => tile(x, risk)).join('')}</div></div>`
+      : `<div class="card"><div class="empty"><div>🏆</div>Bu grupta kazanılacak rozet kalmadı!</div></div>`;
+  }
+  if (filter === 'earned') pool = pool.filter(x => x.has);
+
+  const html = BADGE_GROUPS.map(g => {
+    const items = pool.filter(x => x.b.group === g.key);
+    return items.length ? groupCard(g, items, risk) : '';
+  }).join('');
+  return html || `<div class="card"><div class="empty"><div>🌱</div>Burada henüz rozet yok.<br>İlk soruyu çöz, ilk rozet gelsin!</div></div>`;
+}
+
+function chipsHtml(states) {
+  const count = key => {
+    const list = states.filter(x => key === 'all' || x.b.group === key);
+    return `${list.filter(x => x.has).length}/${list.length}`;
   };
-  const list = [...gifts].sort((a, b) => rank(a) - rank(b));
-  const got = gifts.filter(g => giftProgress(g, st).unlocked).length;
   return `
-  <div class="sec-title">🎁 Hediyelerim <span class="sec-count">${got}/${gifts.length}</span></div>
-  <div class="card gifts">${list.map(g => giftRow(g, st, opened)).join('')}</div>`;
-}
-
-/** Kilitli rozette "340/500" ve ince bir çubuk; ilerlemesi olmayanlarda boş */
-function progressBar(badge, st) {
-  if (typeof badge.progress !== 'function') return '';
-  const [cur, target] = badge.progress(st);
-  const pct = target > 0 ? Math.min(100, (cur / target) * 100) : 0;
-  return `
-    <div class="badge-prog">
-      <span class="badge-prog-bar"><i style="width:${pct}%"></i></span>
-      <span class="badge-prog-txt">${cur}/${target}</span>
-    </div>`;
-}
-
-function badgeCard(b, earned, st) {
-  const has = earned.has(b.id);
-  return `
-  <div class="badge ${has ? 'earned' : 'locked'}">
-    <div class="badge-ico">${has ? b.ico : '🔒'}</div>
-    <div class="badge-name">${esc(b.name)}</div>
-    <div class="badge-desc">${esc(b.desc)}</div>
-    ${has ? '' : progressBar(b, st)}
+  <div class="bfilters" role="tablist">
+    ${[['all', 'Tümü'], ['earned', 'Kazandıklarım'], ['next', 'Sıradakiler']].map(([k, l]) =>
+      `<button type="button" class="seg ${filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}
+  </div>
+  <div class="bchips">
+    <button type="button" class="bchip ${group === 'all' ? 'on' : ''}" data-group="all">Hepsi <i>${count('all')}</i></button>
+    ${BADGE_GROUPS.map(g => `
+      <button type="button" class="bchip ${group === g.key ? 'on' : ''}" data-group="${g.key}">${g.emoji} ${esc(g.label)} <i>${count(g.key)}</i></button>`).join('')}
   </div>`;
 }
 
+function sheetHtml(x, risk) {
+  const { b, has, cur, target } = x;
+  const pct = Math.min(100, x.ratio * 100);
+  const left = Math.max(0, target - cur);
+  const danger = !has && (b.live === 'streak' && risk.atRisk || b.live === 'curGoalStreak' && risk.goalAtRisk);
+  return `
+  <div class="modal-scrim" data-closesheet></div>
+  <div class="modal bsheet r-${b.rarity}" role="dialog" aria-modal="true" aria-label="${esc(b.name)}">
+    <div class="modal-head">
+      <span class="bsheet-rarity">${RARITY[b.rarity]}</span>
+      <button type="button" class="drawer-x" data-closesheet aria-label="kapat">✕</button>
+    </div>
+    <div class="modal-body bsheet-body">
+      <div class="bsheet-ico ${has ? '' : 'locked'}">${b.ico}</div>
+      <div class="bsheet-name">${esc(b.name)}</div>
+      <div class="bsheet-desc">${esc(b.desc)}</div>
+      ${has
+        ? '<div class="bsheet-state done">Kazandın ✓</div>'
+        : typeof b.progress === 'function' ? `
+          <span class="bsheet-bar"><i style="width:${pct}%"></i></span>
+          <div class="bsheet-state">${nf(cur)}/${nf(target)} · <b>${nf(left)}</b> kaldı</div>
+          ${b.live ? `<div class="bsheet-note">${b.live === 'streak' ? 'Şu an süren serin sayılır.' : 'Şu an süren hedef serin sayılır.'}</div>` : ''}
+          ${danger ? '<div class="bsheet-warn">⚠️ Bugün çalışmazsan seri sıfırlanır!</div>' : ''}`
+        : '<div class="bsheet-state">Henüz kazanılmadı</div>'}
+    </div>
+  </div>`;
+}
+
+/* ---------------- ekran ---------------- */
 export function render() {
   const state = store.get();
   const st = summarize(state);
-  const earned = new Set(earnedBadges(st));
-  const pct = BADGES.length ? (earned.size / BADGES.length) * 100 : 0;
-
-  // Kazanmaya en yakın 3 kilitli rozet — "sıradaki hedefin" kartı
-  const next = BADGES
-    .filter(b => !earned.has(b.id) && typeof b.progress === 'function')
-    .map(b => { const [cur, target] = b.progress(st); return { b, ratio: target ? cur / target : 0, cur, target }; })
-    .sort((x, y) => y.ratio - x.ratio)
-    .slice(0, 3);
-
-  const groups = BADGE_GROUPS.map(g => {
-    const list = BADGES.filter(b => b.group === g.key);
-    if (!list.length) return '';
-    const got = list.filter(b => earned.has(b.id)).length;
-    return `
-    <div class="sec-title">${g.emoji} ${g.label} <span class="sec-count">${got}/${list.length}</span></div>
-    <div class="badges">${list.map(b => badgeCard(b, earned, st)).join('')}</div>`;
-  }).join('');
+  const states = badgeStates(st);
+  const risk = streakRisk(state);
+  const got = states.filter(x => x.has).length;
+  const next = states.filter(x => !x.has && x.isNext && typeof x.b.progress === 'function')
+    .sort((a, b) => b.ratio - a.ratio).slice(0, 3);
 
   return `
-  ${giftsSection(state, st)}
-  <div class="card badge-summary">
-    <div class="badge-sum-head">
-      <div class="badge-sum-num">${earned.size}<i>/${BADGES.length}</i></div>
-      <div class="badge-sum-lbl">rozet kazandın 🏅</div>
+  ${streakWarning(state)}
+  <div class="card bhero">
+    <div class="ring bhero-ring">
+      ${ring((got / BADGES.length) * 100)}
+      <div class="ring-txt">
+        <div class="ring-num">${got}</div>
+        <div class="ring-lbl">/ ${BADGES.length}</div>
+      </div>
     </div>
-    <span class="badge-sum-bar"><i style="width:${pct}%"></i></span>
-    ${next.length ? `
-    <div class="badge-next">
-      <div class="badge-next-title">Kazanmaya en yakın</div>
-      ${next.map(n => `
-        <div class="badge-next-row">
-          <span class="badge-next-ico">${n.b.ico}</span>
-          <span class="badge-next-name">${esc(n.b.name)}</span>
-          <span class="badge-next-num">${n.cur}/${n.target}</span>
-        </div>`).join('')}
-    </div>` : ''}
+    <div class="bhero-next">
+      <div class="bhero-title">Sıradaki rozetler</div>
+      ${next.length ? next.map(x => `
+        <button type="button" class="bnext" data-badge="${x.b.id}">
+          <span class="bnext-ico">${x.b.ico}</span>
+          <span class="bnext-main">
+            <span class="bnext-name">${esc(x.b.name)}</span>
+            <span class="bt-bar"><i style="width:${Math.min(100, x.ratio * 100)}%"></i></span>
+          </span>
+          <span class="bnext-num">${nf(x.cur)}/${nf(x.target)}</span>
+        </button>`).join('') : '<div class="hint" style="text-align:left">Hepsini topladın, efsanesin! 🦄</div>'}
+    </div>
   </div>
-  ${groups}
-  <p class="hint">Her rozet bir alışkanlığın işareti 🌸 Sene boyunca hepsini toplayabilirsin!</p>`;
+  <div id="bControls">${chipsHtml(states)}</div>
+  <div id="bList">${listHtml(states, risk)}</div>
+  <div id="bSheet"></div>
+  <p class="hint">Rozetin çerçevesi zorluğunu gösterir: bronz, gümüş, altın, elmas 💎</p>`;
 }
 
-export function bind(root, ctx) {
+export function bind(root) {
+  const refresh = () => {
+    const state = store.get();
+    const states = badgeStates(summarize(state));
+    root.querySelector('#bControls').innerHTML = chipsHtml(states);
+    root.querySelector('#bList').innerHTML = listHtml(states, streakRisk(state));
+  };
+
+  const closeSheet = () => {
+    root.querySelector('#bSheet').innerHTML = '';
+    document.body.classList.remove('modal-open');
+  };
+
   root.addEventListener('click', e => {
-    const btn = e.target.closest('[data-opengift]');
-    if (!btn || btn.classList.contains('opening')) return;
-    const id = btn.dataset.opengift;
-    btn.classList.add('opening');           // kutu büyüyüp kaybolur
-    setTimeout(() => {
-      store.markGiftOpened(id);
-      confetti(2400);
-      ctx.refreshHeader();
-      ctx.rerender();
-      const g = store.findGift(id);
-      if (g) ctx.toast(`🎉 ${g.name}`);
-    }, 750);
+    const f = e.target.closest('[data-filter]');
+    if (f) { filter = f.dataset.filter; refresh(); return; }
+
+    const g = e.target.closest('[data-group]');
+    if (g) {
+      group = g.dataset.group;
+      refresh();
+      root.querySelector(`[data-group="${group}"]`)?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+      return;
+    }
+
+    if (e.target.closest('[data-closesheet]')) { closeSheet(); return; }
+
+    const bt = e.target.closest('[data-badge]');
+    if (bt) {
+      const state = store.get();
+      const x = badgeStates(summarize(state)).find(s => s.b.id === bt.dataset.badge);
+      if (!x) return;
+      root.querySelector('#bSheet').innerHTML = sheetHtml(x, streakRisk(state));
+      document.body.classList.add('modal-open');
+    }
   });
+
+  root.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 }

@@ -281,6 +281,25 @@ const rarityOf = (() => {
 })();
 BADGES.forEach(b => { b.rarity = rarityOf(b); });
 
+/**
+ * KURAL: her rozetin kendine özgü bir animasyonu olur.
+ * Hareket türü, süre ve gecikme rozet kimliğinden türetilir; yeni eklenen her rozet
+ * kendiliğinden kendi animasyonunu alır, elle atama gerekmez. (12 hareket × süre × gecikme:
+ * 130 rozetin hiçbiri bir diğeriyle aynı oynamaz.) Animasyon yalnız kazanılmış rozette oynar.
+ */
+export const BADGE_ANIMS = ['float', 'spin', 'bounce', 'swing', 'pulse', 'flip', 'heart', 'jelly', 'tada', 'wobble', 'orbit', 'shake'];
+const hashOf = str => [...str].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+const usedAnims = new Set();
+BADGES.forEach((b, i) => {
+  const h = hashOf(b.id);
+  const name = BADGE_ANIMS[(h + i) % BADGE_ANIMS.length];
+  const dur = (1.6 + (h % 23) / 10).toFixed(1);       // 1.6s – 3.8s
+  let delay = (h >> 5) % 17;                            // 0 – 1.6s (onda bir)
+  while (usedAnims.has(`${name}|${dur}|${delay}`)) delay++;   // çakışırsa gecikmeyi kaydır: hepsi farklı
+  usedAnims.add(`${name}|${dur}|${delay}`);
+  b.anim = { name, dur: dur + 's', delay: (delay / 10).toFixed(1) + 's' };
+});
+
 export const MOTIVATION = [
   'Bugün de bir adım daha! 🌸','Her soru seni zirveye yaklaştırıyor ⛰️','Küçük adımlar büyük sonuçlar getirir ✨',
   'Yanlışlar öğretmendir, korkma ❤️','Bugünün emeği yarının gülümsemesi 🌷','Sen yaparsın, biliyorum! 💪',

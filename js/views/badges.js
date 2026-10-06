@@ -81,7 +81,7 @@ export function badgeCard(x, risk = {}) {
   <button type="button" class="bc ${state} r-${b.rarity} ${has && top ? 'crown' : ''} ${danger ? 'danger' : ''}" data-badge="${b.id}">
     <span class="bc-emblem">
       ${has && top ? '<span class="bc-crown" aria-hidden="true">👑</span>' : ''}
-      <span class="bc-hex"><span class="bc-hex-in"><span class="bc-ico">${b.ico}</span></span></span>
+      <span class="bc-hex"><span class="bc-hex-in"><span class="bc-ico ${has ? 'ba-' + b.anim.name : ''}" style="--bd:${b.anim.dur};--bdl:${b.anim.delay}">${b.ico}</span></span></span>
       ${steps > 1 ? `<span class="bc-step">${step}</span>` : ''}
     </span>
     <span class="bc-name">${esc(b.name)}</span>

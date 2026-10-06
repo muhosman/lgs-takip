@@ -2024,3 +2024,66 @@ button.tprofile-rankname:hover{background:#FCE3EF}
   .dayp-boxes{grid-template-columns:minmax(0,1fr)}
   .dayp{padding:14px}
 }
+
+/* ============ ROZET ANİMASYONLARI (her rozete kendine özgü; data.js > BADGE_ANIMS) ============ */
+.bc-ico[class*="ba-"]{display:inline-block;animation-duration:var(--bd,2.4s);animation-delay:var(--bdl,0s);animation-iteration-count:infinite;animation-timing-function:ease-in-out;transform-origin:50% 60%}
+.ba-float{animation-name:ba-float}
+.ba-spin{animation-name:ba-spin;animation-timing-function:cubic-bezier(.6,0,.4,1)}
+.ba-bounce{animation-name:ba-bounce}
+.ba-swing{animation-name:ba-swing;transform-origin:50% 0}
+.ba-pulse{animation-name:ba-pulse}
+.ba-flip{animation-name:ba-flip}
+.ba-heart{animation-name:ba-heart}
+.ba-jelly{animation-name:ba-jelly}
+.ba-tada{animation-name:ba-tada}
+.ba-wobble{animation-name:ba-wobble}
+.ba-orbit{animation-name:ba-orbit}
+.ba-shake{animation-name:ba-shake}
+@keyframes ba-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes ba-spin{0%,70%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+@keyframes ba-bounce{0%,60%,100%{transform:translateY(0)}20%{transform:translateY(-8px) scaleY(1.05)}35%{transform:translateY(0) scaleY(.92)}45%{transform:translateY(-3px)}}
+@keyframes ba-swing{0%,100%{transform:rotate(0)}25%{transform:rotate(14deg)}75%{transform:rotate(-14deg)}}
+@keyframes ba-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+@keyframes ba-flip{0%,60%{transform:perspective(200px) rotateY(0)}100%{transform:perspective(200px) rotateY(360deg)}}
+@keyframes ba-heart{0%,40%,100%{transform:scale(1)}10%,30%{transform:scale(1.22)}20%{transform:scale(1.05)}}
+@keyframes ba-jelly{0%,100%{transform:scale(1,1)}25%{transform:scale(1.18,.85)}50%{transform:scale(.88,1.12)}75%{transform:scale(1.06,.95)}}
+@keyframes ba-tada{0%,60%,100%{transform:scale(1) rotate(0)}10%,20%{transform:scale(.9) rotate(-6deg)}30%,50%{transform:scale(1.15) rotate(6deg)}40%{transform:scale(1.15) rotate(-6deg)}}
+@keyframes ba-wobble{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-4px) rotate(-8deg)}40%{transform:translateX(3px) rotate(6deg)}60%{transform:translateX(-2px) rotate(-3deg)}80%{transform:translateX(1px) rotate(1deg)}}
+@keyframes ba-orbit{0%{transform:rotate(0) translateX(3px) rotate(0)}100%{transform:rotate(360deg) translateX(3px) rotate(-360deg)}}
+@keyframes ba-shake{0%,70%,100%{transform:translateX(0)}75%,85%,95%{transform:translateX(-3px)}80%,90%{transform:translateX(3px)}}
+@media (prefers-reduced-motion:reduce){.bc-ico[class*="ba-"]{animation:none}}
+
+/* ============ ROZETLERİM PENCERESİ: renkli zemin, koyu kartlar ============ */
+.bmodal{border:0;background:repeating-linear-gradient(135deg,#5B3FD6 0 14px,#6447E0 14px 28px);color:#fff;box-shadow:0 30px 80px rgba(40,10,90,.45)}
+.bmodal .modal-head{border-bottom-color:rgba(255,255,255,.14)}
+.bmodal .modal-title{color:#fff}
+.bmodal .modal-title small{color:rgba(255,255,255,.75)}
+.bmodal .drawer-x{background:rgba(255,255,255,.18);color:#fff}
+.bmodal .tmodal-tabs{background:rgba(40,20,110,.45)}
+.bmodal .seg{color:rgba(255,255,255,.75)}
+.bmodal .seg.on{background:#fff;color:#5B3FD6}
+.bmodal .modal-body{background:rgba(40,20,110,.28)}
+.bmodal .bc{background:linear-gradient(180deg,#45319C,#36277F);border-color:rgba(255,255,255,.12);box-shadow:0 10px 24px rgba(20,5,60,.35)}
+.bmodal .bc:hover{box-shadow:0 16px 34px rgba(20,5,60,.5)}
+.bmodal .bc-name{color:#fff}
+.bmodal .bc-sub{color:rgba(255,255,255,.6)}
+.bmodal .bc-desc{color:rgba(255,255,255,.72)}
+.bmodal .bc-bar{background:rgba(255,255,255,.14)}
+.bmodal .bc-num{color:#7DF0C4}
+.bmodal .bc.far .bc-hex{background:linear-gradient(160deg,#6B78A8,#47507A)}
+.bmodal .bc.far .bc-hex-in{background:linear-gradient(160deg,#8C97C2,#5D6894)}
+.bmodal .bc.crown{background:linear-gradient(180deg,#4B3596,#3A2884);border:2px solid #F3C34B;box-shadow:0 0 26px rgba(243,195,75,.35)}
+.bmodal .bc-congrats{color:#FFE27A}
+.bmodal .bc-ribbon.muted{background:rgba(255,255,255,.2)}
+.bmodal .empty{color:rgba(255,255,255,.8)}
+.bmodal .bc{animation:rcell .45s both}
+.bmodal .bc:nth-child(4n+2){animation-delay:.05s}.bmodal .bc:nth-child(4n+3){animation-delay:.1s}.bmodal .bc:nth-child(4n){animation-delay:.15s}
+
+/* seviye rütbe amblemi büyük */
+.tprofile-rank{width:150px;height:150px;margin:-82px 0 -6px -8px}
+.student-main .tprofile-cover{height:96px}
+@media (max-width:560px){
+  .tmodal .bcards{grid-template-columns:repeat(2,minmax(0,1fr));gap:52px 10px}
+  .tmodal .bc{padding:52px 8px 24px}
+  .tmodal .bc-congrats{font-size:10.5px}
+}

@@ -290,7 +290,7 @@ function badgesModal() {
   const list = badgeTab === 'earned' ? earned : next;
   return `
   <div class="modal-scrim" data-closemodal></div>
-  <div class="modal tmodal" role="dialog" aria-modal="true" aria-label="Rozetlerim">
+  <div class="modal tmodal bmodal" role="dialog" aria-modal="true" aria-label="Rozetlerim">
     <div class="modal-head">
       <span class="modal-title">🏅 Rozetlerim <small>${earned.length}/${BADGES.length}</small></span>
       <button type="button" class="drawer-x" data-closemodal aria-label="kapat">✕</button>
@@ -380,7 +380,7 @@ function studentCard(state, st) {
   <div class="student">
     <div class="student-main">
       <div class="tprofile-cover" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-      <button type="button" class="tprofile-rank" data-modal="ranks" title="Rütbeleri gör">${rankEmblem(lvl.level, 104)}</button>
+      <button type="button" class="tprofile-rank" data-modal="ranks" title="Rütbeleri gör">${rankEmblem(lvl.level, 150)}</button>
       <div class="tprofile-name">${esc(state.name || 'Öğrenci')}</div>
       <div class="tprofile-sub">Sv. ${lvl.level} · ${esc(lvl.title)}</div>
       <button type="button" class="tprofile-rankname" data-modal="ranks">${esc(rk.name)} rütbesi${nr ? ` · ${esc(nr.name)}'e ${nr.min - lvl.level} seviye` : ' · en üst rütbe'} ›</button>

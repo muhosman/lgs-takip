@@ -1419,3 +1419,7 @@ h1,h2,h3,h4{letter-spacing:-.2px}
   .wr-n{display:none}
   .wr select.inp{grid-column:1 / 3}
 }
+
+/* kilit, hoş geldin ve ilk açılış ekranları da çerçeve renginde */
+.lock{background:var(--frame)}
+.lock-card,.welcome-card{box-shadow:0 30px 70px rgba(80,20,70,.25);border-color:rgba(255,255,255,.6)}

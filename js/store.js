@@ -21,7 +21,7 @@ const defaults = () => ({
   words: [],          // { id, en, tr, type, ticks, wrong, _t } — İngilizce kelimeler
   deletedWords: [],
   seenBadges: [],
-  gifts: [],          // { id, name, kind, target, delivered, _t } — abla/abinin koyduğu hediyeler
+  gifts: [],          // { id, name, kind, target, delivered, condAt, _t } — abla/abinin koyduğu hediyeler
   deletedGifts: [],
   openedGifts: {},    // id -> zaman: kutusu açılıp adı görülen hediyeler
   seenGifts: {},      // id -> zaman: "yeni hediye" bildirimi gösterilenler
@@ -331,6 +331,36 @@ export function addGift({ name, kind, target }) {
   return gift;
 }
 
+/**
+ * Hediyeyi düzenler. Koşul ya da hedef değişirse `condAt` güncellenir: ondan önceki
+ * açılma/görülme kayıtları geçersiz sayılır, hediye baştan başlar. (Kayıtları silmek
+ * yerine damga tutuyoruz; silinseydi eski bir cihazın kopyası eşitlemede geri getirirdi.)
+ */
+export function updateGift(id, { name, kind, target }) {
+  const g = findGift(id);
+  if (!g) return;
+  const t = clampInt(target, 1, 999999);
+  if (kind !== g.kind || t !== g.target) {
+    g.kind = kind;
+    g.target = t;
+    g.condAt = Date.now();
+  }
+  g.name = String(name || '').trim().slice(0, 80) || g.name;
+  g._t = Date.now();
+  state.updatedAt = Date.now();
+  save();
+}
+
+/** Geçerli açılma/görülme kayıtları: hediyenin koşulu son değiştiğinden sonrakiler */
+const validMap = (doc, field) => {
+  const m = doc[field] || {};
+  return Object.fromEntries((doc.gifts || [])
+    .filter(g => (m[g.id] || 0) >= (g.condAt || 0) && m[g.id])
+    .map(g => [g.id, true]));
+};
+export const openedMap = doc => validMap(doc, 'openedGifts');
+export const seenMap = doc => validMap(doc, 'seenGifts');
+
 export function setGiftDelivered(id, delivered) {
   const g = findGift(id);
   if (!g) return;
@@ -355,7 +385,7 @@ export function markGiftOpened(id) {
 export function markGiftsSeen(ids) {
   const now = Date.now();
   const seen = { ...state.seenGifts };
-  ids.forEach(i => { if (!seen[i]) seen[i] = now; });
+  ids.forEach(i => { seen[i] = now; });
   state.seenGifts = seen;
   save();
 }
@@ -460,7 +490,7 @@ export function mergeDocs(a, b) {
   out.goalHistory = [...goals.values()].sort((x, y) => x.from.localeCompare(y.from));
   if (out.goalHistory.length) out.dailyGoal = goalOf(out, todayKey());
 
-  // Hediyeler kitaplarla aynı kalıp; açılan/görülen haritaları birleşir (ilk zaman kalır)
+  // Hediyeler kitaplarla aynı kalıp; açılan/görülen haritaları birleşir
   const deletedG = new Set([...(a.deletedGifts || []), ...(b.deletedGifts || [])]);
   const gifts = new Map();
   for (const g of [...(a.gifts || []), ...(b.gifts || [])]) {
@@ -469,9 +499,10 @@ export function mergeDocs(a, b) {
   }
   out.gifts = [...gifts.values()].filter(g => !deletedG.has(g.id));
   out.deletedGifts = [...deletedG];
+  // en yeni zaman kalır: koşulu değişen hediye yeniden açıldığında damga ilerlemeli
   const unionTimes = (x, y) => {
     const m = { ...(y || {}) };
-    for (const [k, t] of Object.entries(x || {})) m[k] = m[k] ? Math.min(m[k], t) : t;
+    for (const [k, t] of Object.entries(x || {})) m[k] = Math.max(m[k] || 0, t);
     return m;
   };
   out.openedGifts = unionTimes(a.openedGifts, b.openedGifts);

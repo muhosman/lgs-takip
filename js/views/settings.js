@@ -48,7 +48,7 @@ function giftCard(s) {
     </div>`;
   }
   const st = summarize(s);
-  const opened = s.openedGifts || {};
+  const opened = store.openedMap(s);
   return `
   <div class="card">
     <div class="card-title">🎁 Hediyeler</div>

@@ -63,7 +63,7 @@ function wonRow(g, opened) {
 export function render() {
   const state = store.get();
   const st = summarize(state);
-  const opened = state.openedGifts || {};
+  const opened = store.openedMap(state);
   const all = (state.gifts || []).map(g => ({ g, p: giftProgress(g, st) }));
   const won = all.filter(x => x.p.unlocked);
   const todo = all.filter(x => !x.p.unlocked);

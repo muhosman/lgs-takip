@@ -867,7 +867,23 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 @media (prefers-reduced-motion:reduce){.streak-warn.late,.chip-fire.danger{animation:none}}
 
 /* özet: halka + sıradakiler */
-.bhero{display:flex;gap:18px;align-items:center}
+.bhero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:stretch}
+.bhero-ring{align-self:center}
+/* kazanılanlar: kendi içinde kayan karışık liste (sayfa kaymasın) */
+.bhero-won{min-width:0;display:flex;flex-direction:column;gap:6px;padding-left:16px;border-left:1.5px dashed var(--line)}
+.bhero-title i{font-style:normal;color:var(--pink-deep);margin-left:3px}
+.bwon-list{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px;
+  max-height:152px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-right:2px;
+}
+.bwon{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:12px;text-align:left;border:1.5px solid transparent;min-width:0}
+.bwon:active{transform:scale(.97)}
+.bwon-ico{font-size:18px;line-height:1;flex-shrink:0}
+.bwon-name{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bwon.r-bronze{background:var(--r-bronze-bg);border-color:var(--r-bronze)}
+.bwon.r-silver{background:var(--r-silver-bg);border-color:var(--r-silver)}
+.bwon.r-gold{background:var(--r-gold-bg);border-color:var(--r-gold)}
+.bwon.r-diamond{background:linear-gradient(160deg,#F7F3FF,#EAF6FF);border-color:var(--r-diamond)}
 .bhero-ring .ring-num{font-size:30px}
 .bhero-next{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
 .bhero-title{font-family:'Baloo 2',sans-serif;font-size:13px;color:var(--ink-soft)}
@@ -946,9 +962,14 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 .bsheet-note{font-size:11.5px;color:var(--ink-soft);margin-top:6px}
 .bsheet-warn{margin-top:11px;padding:8px 10px;border-radius:12px;background:#FFEDEF;color:#8A2836;font-size:12.5px;font-weight:700}
 
+@media (max-width:860px) and (min-width:521px){
+  .bhero{grid-template-columns:auto minmax(0,1fr)}
+  .bhero-won{grid-column:1 / -1;padding:12px 0 0;border-left:0;border-top:1.5px dashed var(--line)}
+}
 @media (max-width:520px){
-  .bhero{flex-direction:column;align-items:stretch;gap:12px}
-  .bhero-ring{align-self:center}
+  .bhero{grid-template-columns:auto minmax(0,1fr);gap:12px}
+  .bhero-won{grid-column:1 / -1;padding:12px 0 0;border-left:0;border-top:1.5px dashed var(--line)}
+  .bwon-list{max-height:118px;grid-template-columns:repeat(2,minmax(0,1fr))}
   .btiles{grid-template-columns:repeat(3,1fr);gap:7px}
   .bt{padding:10px 4px 8px}
   .bt-name{font-size:11px}

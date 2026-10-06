@@ -90,7 +90,7 @@ function refreshHeader() {
   $('#levelFill').style.width = lvl.pct + '%';
 
   // Hediye sepeti: kazanılan sayısı; açılmayı bekleyen kutu varsa sallanır
-  const opened = state.openedGifts || {};
+  const opened = store.openedMap(state);
   const won = unlockedGifts(state.gifts, st);
   const giftChip = $('#giftChip');
   giftChip.classList.toggle('hidden', !(state.gifts || []).length);
@@ -108,9 +108,10 @@ function checkBadges() {
 
   // Yeni açılan hediye: adı söylenmez, kutuyu Rozetler'de kendisi açacak
   const gifts = unlockedGifts(state.gifts, st);
-  const freshGifts = gifts.filter(id => !(state.seenGifts || {})[id]);
+  const seenG = store.seenMap(state);
+  const freshGifts = gifts.filter(id => !seenG[id]);
   if (freshGifts.length) {
-    store.markGiftsSeen(gifts);
+    store.markGiftsSeen(freshGifts);
     refreshHeader();
     confetti(2400);
     setTimeout(() => toast('🧺 Sepetine bir hediye düştü! Sağ üstten bak'), 300);

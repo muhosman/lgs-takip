@@ -151,22 +151,17 @@ function sheetHtml(x, risk) {
   </div>`;
 }
 
-/* ---------------- ekran ---------------- */
-export function render() {
-  const state = store.get();
-  const st = summarize(state);
-  const states = badgeStates(st);
-  const risk = streakRisk(state);
+/* ---------------- özet kartları (İstatistik de kullanır) ---------------- */
+/** [halka + sıradaki rozetler] ve [kazandıkların] kartları */
+export function summaryCards(states) {
   const got = states.filter(x => x.has).length;
   const next = states.filter(x => !x.has && x.isNext && typeof x.b.progress === 'function')
     .sort((a, b) => b.ratio - a.ratio).slice(0, 3);
   // kazanılanlar karışık: en değerli üstte, aynı zorlukta grup sırası
   const RANK = { diamond: 0, gold: 1, silver: 2, bronze: 3 };
-  const warn = streakWarning(state);
   const won = states.filter(x => x.has).sort((a, b) => RANK[a.b.rarity] - RANK[b.b.rarity]);
 
   return `
-  <div class="btop ${warn ? 'has-warn' : ''}">
   <div class="card bhero">
     <div class="ring bhero-ring">
       ${ring((got / BADGES.length) * 100)}
@@ -198,6 +193,29 @@ export function render() {
           </button>`).join('')}
         </div>` : '<div class="hint" style="text-align:left">İlk soruyu çöz, ilk rozet gelsin 🌱</div>'}
     </div>
+`;
+}
+
+/** Tek rozetin detay penceresi (İstatistik'ten de açılır) */
+export function badgeSheetHtml(id) {
+  const state = store.get();
+  const x = badgeStates(summarize(state)).find(s => s.b.id === id);
+  return x ? sheetHtml(x, streakRisk(state)) : '';
+}
+
+export const allBadgeStates = () => badgeStates(summarize(store.get()));
+
+/* ---------------- ekran ---------------- */
+export function render() {
+  const state = store.get();
+  const st = summarize(state);
+  const states = badgeStates(st);
+  const risk = streakRisk(state);
+  const warn = streakWarning(state);
+
+  return `
+  <div class="btop ${warn ? 'has-warn' : ''}">
+  ${summaryCards(states)}
     ${warn}
   </div>
   <div id="bControls">${chipsHtml(states)}</div>
@@ -235,10 +253,9 @@ export function bind(root) {
 
     const bt = e.target.closest('[data-badge]');
     if (bt) {
-      const state = store.get();
-      const x = badgeStates(summarize(state)).find(s => s.b.id === bt.dataset.badge);
-      if (!x) return;
-      root.querySelector('#bSheet').innerHTML = sheetHtml(x, streakRisk(state));
+      const html = badgeSheetHtml(bt.dataset.badge);
+      if (!html) return;
+      root.querySelector('#bSheet').innerHTML = html;
       document.body.classList.add('modal-open');
     }
   });

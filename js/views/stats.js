@@ -1,7 +1,8 @@
 // "İstatistik" ekranı — trend, ders dağılımı, doğruluk, rozetler
-import { SUBJECTS, BADGES } from '../data.js';
+import { SUBJECTS } from '../data.js';
 import * as store from '../store.js';
-import { summarize, dayTotals, earnedBadges } from '../gamify.js';
+import { summarize, dayTotals } from '../gamify.js';
+import { summaryCards, badgeSheetHtml, allBadgeStates } from './badges.js';
 import { keyOf, addDays, netOf, fmtNet, DAY_SHORT, esc } from '../utils.js';
 import { bars, donut } from '../charts.js';
 
@@ -46,22 +47,12 @@ export function render() {
   const trend = last14(state.days);
   const hasData = st.totalQ > 0;
 
-  const earned = new Set(earnedBadges(st));
-
-  // Rozetlerin tamamı artık ayrı sekmede; burada sadece kısayol duruyor.
-  // Soru verisi olmasa da görünmeli: kitap rozetleri veri olmadan da kazanılıyor.
-  const lastFew = BADGES.filter(b => earned.has(b.id)).slice(-6);
+  // Rozetler burada da doğrudan görünür (Rozetler sayfasının özet kartları);
+  // soru verisi olmasa da: kitap rozetleri veri olmadan da kazanılıyor.
   const badgeSection = `
-  <button type="button" class="card badge-link" data-goto="badges">
-    <div class="badge-link-head">
-      <span class="badge-link-title">🏅 Rozetlerin</span>
-      <span class="badge-link-count">${earned.size}/${BADGES.length} →</span>
-    </div>
-    <div class="badge-link-icos">${
-      lastFew.length ? lastFew.map(b => `<span>${b.ico}</span>`).join('')
-                     : '<span class="badge-link-empty">Henüz rozet yok — ilk soruyu çöz! 🌱</span>'
-    }</div>
-  </button>`;
+  <div class="sec-title stats-badges-title">🏅 Rozetlerin</div>
+  <div class="btop">${summaryCards(allBadgeStates())}</div>
+  <div id="sSheet"></div>`;
 
   if (!hasData) {
     return `<div class="card"><div class="empty"><div>📊</div>
@@ -138,9 +129,17 @@ export function render() {
   ${badgeSection}`;
 }
 
-export function bind(root, ctx) {
+export function bind(root) {
+  const sheet = root.querySelector('#sSheet');
+  const close = () => { sheet.innerHTML = ''; document.body.classList.remove('modal-open'); };
   root.addEventListener('click', e => {
-    const b = e.target.closest('button[data-goto]');
-    if (b) ctx.go(b.dataset.goto);
+    if (e.target.closest('[data-closesheet]')) { close(); return; }
+    const b = e.target.closest('[data-badge]');
+    if (!b) return;
+    const html = badgeSheetHtml(b.dataset.badge);
+    if (!html) return;
+    sheet.innerHTML = html;               // detay burada açılır, sayfa değişmez
+    document.body.classList.add('modal-open');
   });
+  root.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 }

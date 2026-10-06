@@ -893,6 +893,7 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 .btop{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-bottom:4px;align-items:stretch}
 .btop.has-warn{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,.8fr)}
 .btop > *{margin:0}
+.stats-badges-title{margin-top:24px}
 .btop .streak-warn{flex-direction:column;justify-content:center;gap:8px;border-radius:var(--r)}
 .bhero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
 .bhero-ring{align-self:center}

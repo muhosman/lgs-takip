@@ -89,13 +89,15 @@ function refreshHeader() {
   const now = new Date();
 
   pageHeader(currentTab);
-  $('#streakChip').innerHTML = `🔥 <b>${st.streak}</b>`;
+  $('#streakChip').innerHTML = `<span class="hb-ico">🔥</span><span class="hb-txt"><b>${st.streak}</b><small>gün seri</small></span>`;
   const risk = streakRisk(state);
   $('#streakChip').classList.toggle('danger', risk.atRisk);
   $('#streakChip').title = risk.atRisk ? 'Serin tehlikede! Bugün en az 1 soru gir' : 'Üst üste çalıştığın gün';
 
   const kalan = daysBetween(now, dateOf(state.examDate));
-  $('#countdownChip').innerHTML = kalan >= 0 ? `⏳ <b>${kalan}</b><i class="chip-unit"> gün</i>` : `🎓 <b>LGS</b>`;
+  $('#countdownChip').innerHTML = kalan >= 0
+    ? `<span class="hb-ico">⏳</span><span class="hb-txt"><b>${kalan}</b><small>LGS'ye gün</small></span>`
+    : `<span class="hb-ico">🎓</span><span class="hb-txt"><b>LGS</b><small>sınav günü</small></span>`;
 
   $('#levelName').textContent = `Sv. ${lvl.level} · ${lvl.title}`;
   $('#levelXp').textContent = `${lvl.into} / ${lvl.need} XP`;
@@ -241,7 +243,7 @@ const ctx = {
 function renderTab(tab) {
   // Yönetici kilidi başka sekmeye geçince kapanır (aynı sekmenin yeniden çizimi değil)
   const sameTab = tab === currentTab;
-  if (!sameTab) { admin.lock(); giftAdmin.reset(); exams.reset(); english.reset(); }
+  if (!sameTab) { admin.lock(); giftAdmin.reset(); exams.reset(); english.reset(); today.reset(); }
   currentTab = tab;
   const view = VIEWS[tab];
 

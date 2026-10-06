@@ -49,7 +49,10 @@ function dayInfo(key) {
     : goal > 0 && t.q >= goal ? 'perfect'
     : t.q > 0 ? 'partial'
     : key === today ? 'today' : 'missed';
-  return { key, q: t.q, goal, pct, status, t };
+  const ratio = goal ? t.q / goal : 0;
+  // alev: hedefin çok üstü (%150 → 2 katman, %200 → 3 katman)
+  const fire = status === 'perfect' ? (ratio >= 2 ? 3 : ratio >= 1.5 ? 2 : 0) : 0;
+  return { key, q: t.q, goal, pct, status, t, fire };
 }
 
 /** Seçili güne kadar kesintisiz tam gün sayısı (o gün tam değilse 0) */
@@ -89,7 +92,9 @@ function calendar() {
             data-day="${c.key}" ${c.status === 'future' ? 'disabled' : ''} style="--i:${(Math.floor((lead + i) / 7) + col)}"
             title="${fmtLongDay(c.key)}${c.goal ? ` · ${c.q}/${c.goal} soru` : ''}">
       ${chainL ? '<span class="cal-chain l"></span>' : ''}${chainR ? '<span class="cal-chain r"></span>' : ''}
-      <span class="cal-top"><em>${c.status === 'partial' ? '%' + c.pct : ''}</em>${c.status === 'perfect' ? '<i>★</i>' : ''}</span>
+      ${c.fire ? `<span class="flame f${c.fire}" title="Hedefin ${c.fire === 3 ? '2 katı' : 'çok üstü'}!"><i></i><i></i><i></i><i></i><em></em><em></em>${c.fire === 3 ? '<em></em>' : ''}</span>` : ''}
+      ${c.status === 'perfect' ? `<span class="cal-star" style="--sd:${(i % 5) * .45}s"><b>★</b><i>✦</i><i>★</i><i>✦</i></span>` : ''}
+      <span class="cal-top"><em>${c.status === 'partial' ? '%' + c.pct : ''}</em></span>
       <b>${d}</b>
       <span class="cal-goal">${c.status === 'future' || !c.goal ? '' : `${c.q}<i>/${c.goal}</i>`}</span>
       <span class="cal-bar"><i style="width:${c.pct}%"></i></span>

@@ -1,9 +1,9 @@
 // Uygulama çekirdeği: kilit ekranı, sekme yönlendirme, üst bar
 import * as store from './store.js';
 import * as sync from './sync.js';
-import { BADGES } from './data.js';
+import { BADGES, MOTIVATION } from './data.js';
 import { summarize, levelInfo, earnedBadges, unlockedGifts, streakRisk } from './gamify.js';
-import { fmtLong, fmtDay, dateOf, daysBetween } from './utils.js';
+import { fmtLong, fmtDay, dateOf, daysBetween, esc } from './utils.js';
 import { confetti } from './confetti.js';
 
 import * as today from './views/today.js';
@@ -38,22 +38,6 @@ let currentTab = 'today';
 let activePin = '';       // doğrulanmış şifre — senkron çağrılarında kullanılır
 let pushTimer = null;
 
-/* ---------------- sakura ---------------- */
-function petals() {
-  const host = $('#petals');
-  const chars = ['🌸', '🌷', '✿', '❀', '🌼'];
-  for (let i = 0; i < 12; i++) {
-    const el = document.createElement('div');
-    el.className = 'petal';
-    el.textContent = chars[(Math.random() * chars.length) | 0];
-    el.style.left = Math.random() * 100 + 'vw';
-    el.style.fontSize = 12 + Math.random() * 14 + 'px';
-    el.style.animationDuration = 11 + Math.random() * 14 + 's';
-    el.style.animationDelay = -Math.random() * 20 + 's';
-    host.appendChild(el);
-  }
-}
-
 /* ---------------- toast ---------------- */
 let toastTimer;
 function toast(msg) {
@@ -71,14 +55,40 @@ function greetingText(name) {
   return name ? `${part}, ${name}!` : `${part}!`;
 }
 
+// Panelin üstündeki sayfa başlığı; Bugün'de selamlama
+const PAGE_INFO = {
+  week:      ['Çizelge', 'Haftalık soru tablon'],
+  books:     ['Kitaplar', 'Kitapların ve ünitelerin'],
+  english:   ['İngilizce', 'Kelimelerin, oyunların ve ilerlemen'],
+  badges:    ['Rozetler', 'Topladıkların ve sıradakiler'],
+  stats:     ['İstatistik', 'Çalışmanın özeti'],
+  exams:     ['Denemeler', 'Deneme sonuçların ve konu analizi'],
+  settings:  ['Ayarlar', 'Kişisel bilgiler, şifre ve yedek'],
+  gifts:     ['Hediyelerim', 'Sepetin ve kazanılacak hediyeler'],
+  giftAdmin: ['Hediye yönetimi', 'Yönetici alanı'],
+};
+
+function pageHeader(tab) {
+  const state = store.get();
+  const now = new Date();
+  const info = PAGE_INFO[tab];
+  if (info) {
+    $('#greeting').textContent = info[0];
+    $('#todayLabel').textContent = info[1];
+  } else {
+    $('#greeting').innerHTML = `${esc(greetingText(state.name).replace(/!$/, ''))} <span class="wave">👋</span>`;
+    $('#todayLabel').textContent = `${fmtDay(now)} · ${fmtLong(now)} · ${MOTIVATION[now.getDate() % MOTIVATION.length]}`;
+  }
+  document.body.dataset.tab = tab;
+}
+
 function refreshHeader() {
   const state = store.get();
   const st = summarize(state);
   const lvl = levelInfo(st.xp);
   const now = new Date();
 
-  $('#greeting').textContent = greetingText(state.name);
-  $('#todayLabel').textContent = `${fmtDay(now)} · ${fmtLong(now)}`;
+  pageHeader(currentTab);
   $('#streakChip').innerHTML = `🔥 <b>${st.streak}</b>`;
   const risk = streakRisk(state);
   $('#streakChip').classList.toggle('danger', risk.atRisk);
@@ -217,7 +227,8 @@ function initSyncWatchers() {
 const ctx = {
   toast, refreshHeader, checkBadges, lock,
   rerender: () => renderTab(currentTab),
-  go: tab => { if (VIEWS[tab]) renderTab(tab); },   // görünümler arası geçiş (ör. İstatistik → Rozetler)
+  go: tab => { if (VIEWS[tab]) renderTab(tab); },
+  openExamAdd: () => { renderTab('exams'); exams.requestAdd(); renderTab('exams'); },   // görünümler arası geçiş (ör. İstatistik → Rozetler)
   syncNow: async () => {
     if (!sync.enabled()) { toast('Bulut eşitleme kapalı'); return; }
     toast('Eşitleniyor…');
@@ -229,7 +240,8 @@ const ctx = {
 
 function renderTab(tab) {
   // Yönetici kilidi başka sekmeye geçince kapanır (aynı sekmenin yeniden çizimi değil)
-  if (tab !== currentTab) { admin.lock(); giftAdmin.reset(); exams.reset(); }
+  const sameTab = tab === currentTab;
+  if (!sameTab) { admin.lock(); giftAdmin.reset(); exams.reset(); }
   currentTab = tab;
   const view = VIEWS[tab];
 
@@ -248,9 +260,11 @@ function renderTab(tab) {
   old.replaceWith(root);
 
   view.bind(root, ctx);
-  window.scrollTo(0, 0);
-  document.querySelectorAll('#tabbar button').forEach(b =>
-    b.classList.toggle('on', b.dataset.tab === tab));
+  // masaüstünde içerik beyaz panelin içinde kayar, telefonda sayfa kayar
+  if (!sameTab) { window.scrollTo(0, 0); $('#panel').scrollTop = 0; }
+  pageHeader(tab);
+  document.querySelectorAll('#tabbar button, #sideNav [data-tab]').forEach(b =>
+    b.classList.toggle('on', b.dataset.tab === tab || (b.dataset.tab === 'settings' && tab === 'giftAdmin')));
   // Ayarlar alt menüde değil, üstteki dişli düğmesinde
   $('#gearBtn').classList.toggle('on', tab === 'settings' || tab === 'giftAdmin');
   $('#giftChip').classList.toggle('on', tab === 'gifts');
@@ -395,7 +409,6 @@ function initOnboard() {
 /* ---------------- başlangıç ---------------- */
 function init() {
   store.load();
-  petals();
   initLock();
   initOnboard();
   initSyncIndicator();
@@ -403,6 +416,12 @@ function init() {
 
   $('#gearBtn').addEventListener('click', () => renderTab('settings'));
   $('#giftChip').addEventListener('click', () => { gifts.resetMode(); renderTab('gifts'); });
+
+  $('#sideNav').addEventListener('click', e => {
+    if (e.target.closest('#sideLock')) { lock(); return; }
+    const b = e.target.closest('button[data-tab]');
+    if (b) renderTab(b.dataset.tab);
+  });
 
   $('#tabbar').addEventListener('click', e => {
     const b = e.target.closest('button[data-tab]');

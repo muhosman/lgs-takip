@@ -16,6 +16,8 @@ let drawerScroll = 0;      // konu ayarında yeniden çizimde kaydırma kaybolma
 let focusSubject = null;   // konu eklenen dersin kutusu yeniden odaklansın
 
 export const reset = () => { drawer = null; };
+/** Başka sayfadan (Bugün > Deneme ekle) drawer'ı açık getirmek için */
+export const requestAdd = () => { drawer = { mode: 'add' }; justOpened = true; };
 
 const examNet = ex => SUBJECTS.reduce((a, s) => a + netOf(ex.subjects[s.key]?.d, ex.subjects[s.key]?.y), 0);
 const topicKey = n => String(n).trim().toLocaleLowerCase('tr');

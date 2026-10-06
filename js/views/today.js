@@ -34,6 +34,10 @@ const shortName = s => SHORT[s.key] || s.name;
 const DAY_NAMES = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 const fmtLongDay = key => { const d = dateOf(key); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${DAY_NAMES[d.getDay()]}`; };
 
+/** Soru girişi yalnız son 1 haftaya (bugün ve önceki 6 gün); daha eskisi görüntülenir, düzenlenmez */
+export const EDIT_DAYS = 7;
+const editable = key => key <= todayKey() && daysBetween(dateOf(key), dateOf(todayKey())) < EDIT_DAYS;
+
 /* ---------------- gün durumu (takvim ve panel) ---------------- */
 function dayInfo(key) {
   const t = dayTotals(store.get().days[key]);
@@ -80,7 +84,7 @@ function calendar() {
     const chainR = c.status === 'perfect' && next?.status === 'perfect' && col !== 6;
     const d = dateOf(c.key).getDate();
     return `
-    <button type="button" class="cal-d ${c.status} ${c.key === selDay ? 'sel' : ''} ${c.key === today ? 'is-today' : ''}"
+    <button type="button" class="cal-d ${c.status} ${c.key === selDay ? 'sel' : ''} ${c.key === today ? 'is-today' : ''} ${c.status !== 'future' && !editable(c.key) ? 'old' : ''}"
             data-day="${c.key}" ${c.status === 'future' ? 'disabled' : ''} style="--i:${(Math.floor((lead + i) / 7) + col)}"
             title="${fmtLongDay(c.key)}${c.goal ? ` · ${c.q}/${c.goal} soru` : ''}">
       ${chainL ? '<span class="cal-chain l"></span>' : ''}${chainR ? '<span class="cal-chain r"></span>' : ''}
@@ -113,14 +117,14 @@ function calendar() {
 }
 
 /* ---------------- seçili günün hedefleri ---------------- */
-function subjectBox(s, key) {
+function subjectBox(s, key, ro = false) {
   const r = store.recOf(key, s.key);
   const own = r.d + r.y + r.b;
   const q = own + r.ct;
   const acc = own ? Math.round((r.d / own) * 100) : 0;
   const done = METRICS.filter(m => r[m.key] > 0);
   return `
-  <button type="button" class="tbox ${q ? '' : 'empty'}" data-subjbox="${s.key}" style="--c:${s.color};--i:${s.ink}">
+  <button type="button" class="tbox ${q ? '' : 'empty'} ${ro ? 'ro' : ''}" ${ro ? 'disabled' : `data-subjbox="${s.key}"`} style="--c:${s.color};--i:${s.ink}">
     <span class="tbox-ico">${s.emoji}</span>
     <span class="tbox-main">
       <span class="tbox-name">${esc(shortName(s))}</span>
@@ -137,6 +141,7 @@ function dayPanel() {
   const info = dayInfo(selDay);
   const chain = chainAt(selDay);
   const isToday = selDay === todayKey();
+  const canEdit = editable(selDay);
   return `
   <div class="dayp">
     <div class="dayp-head">
@@ -153,8 +158,10 @@ function dayPanel() {
         <span class="dayp-net">${fmtNet(info.t.net)} net · ${info.t.d} doğru</span>
       </div>
     </div>
-    <div class="dayp-boxes">${SUBJECTS.map(s => subjectBox(s, selDay)).join('')}</div>
-    <button type="button" class="btn-primary dayp-go" data-entry>✏️ ${isToday ? 'Bugünkü soruları gir' : 'Bu günün sorularını düzenle'}</button>
+    <div class="dayp-boxes">${SUBJECTS.map(s => subjectBox(s, selDay, !canEdit)).join('')}</div>
+    ${canEdit
+      ? `<button type="button" class="btn-primary dayp-go" data-entry>✏️ ${isToday ? 'Bugünkü soruları gir' : 'Bu günün sorularını düzenle'}</button>`
+      : '<div class="dayp-lock">🔒 1 haftadan eski günler düzenlenemez</div>'}
   </div>`;
 }
 
@@ -485,7 +492,7 @@ export function render() {
       <div id="tDay">${dayPanel()}</div>
     </div>
   </div>
-  <div id="tLayer">${drawer?.mode === 'entry' ? entryDrawer() : drawer?.mode === 'exam' ? examDrawer() : ''}${
+  <div id="tLayer">${drawer?.mode === 'entry' && editable(drawer.day) ? entryDrawer() : drawer?.mode === 'exam' ? examDrawer() : ''}${
     modal === 'badges' ? badgesModal() : modal === 'gifts' ? giftsModal() : modal === 'ranks' ? ranksModal() : ''}</div>`;
   justOpened = false;
   return html;
@@ -547,8 +554,8 @@ export function bind(root, ctx) {
 
     // seçili günün girişi
     const sb = t.closest('[data-subjbox]');
-    if (sb) { open({ mode: 'entry', day: selDay, subj: sb.dataset.subjbox }); return; }
-    if (t.closest('[data-entry]')) {
+    if (sb && editable(selDay)) { open({ mode: 'entry', day: selDay, subj: sb.dataset.subjbox }); return; }
+    if (t.closest('[data-entry]') && editable(selDay)) {
       const first = SUBJECTS.find(s => !subjQ(selDay, s.key)) || SUBJECTS[0];
       open({ mode: 'entry', day: selDay, subj: first.key });
       return;
@@ -572,6 +579,7 @@ export function bind(root, ctx) {
     const btn = t.closest('button[data-act]');
     if (!btn) return;
     const { act, k, s, m } = btn.dataset;
+    if (!editable(k)) { ctx.toast('🔒 1 haftadan eski günler düzenlenemez'); return; }
     const input = root.querySelector(`input[data-k="${k}"][data-s="${s}"][data-m="${m}"]`);
     const cur = clampInt(input.value);
     const step = { inc: 1, dec: -1, add5: 5, add10: 10 }[act] || 0;
@@ -657,6 +665,7 @@ export function bind(root, ctx) {
 
   const writeInput = (input, final) => {
     const { k, s, m } = input.dataset;
+    if (!editable(k)) return;
     if (final) input.value = clampInt(input.value);
     store.setValue(k, s, m, input.value);
     softUpdate(k, s);

@@ -1,20 +1,21 @@
-// "Hediyelerim" ekranı — sağ üstteki sepetten açılır: kazanılanlar ve kazanılacaklar
+// "Hediyelerim" — üstte karosel (ortadaki büyük ve parlak), altta Sepetim / Kazanılacaklar kartları.
+// Hazır hediye titrer; dokununca tam ekran açılış: kutu patlar, kediden hediye çıkar.
 import { GIFT_KIND_MAP } from '../data.js';
 import * as store from '../store.js';
 import { summarize, giftProgress } from '../gamify.js';
 import { esc, fmtNet } from '../utils.js';
 import { confetti } from '../confetti.js';
+import { giftBox, playReveal } from '../giftArt.js';
 
 // 'basket' | 'todo'; null ise ilk açılışta duruma göre seçilir
 let mode = null;
-export const resetMode = () => { mode = null; };
+let focus = 0;              // karoselde ortadaki hediye
+export const resetMode = () => { mode = null; focus = 0; };
 
 const condText = g => (GIFT_KIND_MAP[g.kind]?.cond || (t => `${t}`))(g.target);
+const kindEmoji = g => GIFT_KIND_MAP[g.kind]?.emoji || '🎁';
 
-/**
- * Kilitli hediyede gösterilen ilerleme. Seri için bugünkü seri gösterilir:
- * yeni bir seri kurması gerekiyor, en iyisi değil.
- */
+/** Kilitli hediyede gösterilen ilerleme. Seri için bugünkü seri: yeni bir seri kurması gerekiyor. */
 function shownProgress(g, st, p) {
   const cur = g.kind === 'streak' ? st.streak : p.cur;
   const left = Math.max(0, g.target - cur);
@@ -23,100 +24,165 @@ function shownProgress(g, st, p) {
   return { pct: g.target > 0 ? Math.min(100, (cur / g.target) * 100) : 0, curTxt, leftTxt };
 }
 
-function lockedRow(g, st, p) {
-  const s = shownProgress(g, st, p);
+/** Hediyelerin durumu ve sırası: hazırlar, teslim bekleyenler, en yakın kilitliler, teslim edilenler */
+function giftStates() {
+  const state = store.get();
+  const st = summarize(state);
+  const opened = store.openedMap(state);
+  const list = (state.gifts || []).map(g => {
+    const p = giftProgress(g, st);
+    const status = !p.unlocked ? 'locked' : !opened[g.id] ? 'ready' : 'opened';
+    return { g, p, status, prog: shownProgress(g, st, p) };
+  });
+  const rank = x => x.status === 'ready' ? -3 : x.status === 'opened' ? (x.g.delivered ? 2 : -2) : -(x.p.cur / (x.g.target || 1));
+  return { st, list: list.sort((a, b) => rank(a) - rank(b)) };
+}
+
+/* ---------------- karosel ---------------- */
+function slide(x, off) {
+  const { g, status, prog } = x;
+  const art = status === 'locked' ? giftBox({ size: 150, locked: true })
+    : status === 'ready' ? giftBox({ size: 150 })
+    : giftBox({ size: 150, cat: true, open: true });
+  const title = status === 'opened' ? esc(g.name) : status === 'ready' ? 'Hediyen hazır!' : esc(condText(g));
+  const pill = status === 'locked'
+    ? `<span class="gc-pill"><b>${prog.curTxt}</b>/${g.target} · ${esc(prog.leftTxt)}</span>`
+    : status === 'ready'
+      ? '<span class="gc-pill go">✨ Açmak için dokun</span>'
+      : `<span class="gc-pill done">${g.delivered ? '💝 Teslim edildi' : '⏳ Teslim bekliyor'}</span>`;
   return `
-  <div class="gift locked">
-    <div class="gift-box">🎁</div>
-    <div class="gift-body">
-      <div class="gift-cond">${esc(condText(g))}</div>
-      <div class="badge-prog gift-prog">
-        <span class="badge-prog-bar"><i style="width:${s.pct}%"></i></span>
-        <span class="badge-prog-txt">${s.curTxt}/${g.target} · ${esc(s.leftTxt)}</span>
-      </div>
-    </div>
+  <div class="gc-slide ${status} ${off === 0 ? 'center' : ''}" style="--o:${off}" data-gfocus="${off}"
+       ${off === 0 && status === 'ready' ? `data-opengift="${g.id}" role="button" tabindex="0"` : ''}>
+    <div class="gc-art ${status === 'ready' ? 'tremble' : ''}">${art}</div>
+    <div class="gc-title">${title}</div>
+    <div class="gc-sub">${status === 'locked' ? `${kindEmoji(g)} ${esc(GIFT_KIND_MAP[g.kind]?.label || '')}` : esc(condText(g)) + ' ✓'}</div>
+    ${status === 'locked' ? `<span class="gc-bar"><i style="width:${prog.pct}%"></i></span>` : ''}
+    ${pill}
   </div>`;
 }
 
-function wonRow(g, opened) {
-  if (!opened[g.id]) {
+function carousel(list) {
+  if (!list.length) return '';
+  focus = Math.max(0, Math.min(list.length - 1, focus));
+  const slides = list.map((x, i) => ({ x, off: i - focus })).filter(s => Math.abs(s.off) <= 2);
+  return `
+  <div class="gc" data-gcarousel>
+    <div class="gc-glow" aria-hidden="true"></div>
+    <button type="button" class="gc-nav l" data-gstep="-1" ${focus === 0 ? 'disabled' : ''} aria-label="önceki">‹</button>
+    <div class="gc-track">${slides.map(s => slide(s.x, s.off)).join('')}</div>
+    <button type="button" class="gc-nav r" data-gstep="1" ${focus >= list.length - 1 ? 'disabled' : ''} aria-label="sonraki">›</button>
+    <div class="gc-dots">${list.map((x, i) => `<i class="${i === focus ? 'on' : ''} ${x.status}"></i>`).join('')}</div>
+  </div>`;
+}
+
+/* ---------------- kartlar ---------------- */
+function card(x) {
+  const { g, status, prog } = x;
+  if (status === 'locked') {
     return `
-    <button type="button" class="gift ready" data-opengift="${g.id}">
-      <div class="gift-box">🎁</div>
-      <div class="gift-body">
-        <div class="gift-name">Hediyen hazır!</div>
-        <div class="gift-cond">${esc(condText(g))} ✓ · açmak için dokun</div>
+    <div class="gk locked">
+      <div class="gk-art">${giftBox({ size: 92, locked: true })}</div>
+      <div class="gk-main">
+        <span class="gk-kind">${kindEmoji(g)} ${esc(GIFT_KIND_MAP[g.kind]?.label || '')}</span>
+        <div class="gk-title">${esc(condText(g))}</div>
+        <span class="gk-bar"><i style="width:${prog.pct}%"></i></span>
+        <div class="gk-sub"><b>${prog.curTxt}</b>/${g.target} · ${esc(prog.leftTxt)}</div>
+      </div>
+    </div>`;
+  }
+  if (status === 'ready') {
+    return `
+    <button type="button" class="gk ready" data-opengift="${g.id}">
+      <div class="gk-art tremble">${giftBox({ size: 92 })}</div>
+      <div class="gk-main">
+        <span class="gk-kind">✨ Hediyen hazır</span>
+        <div class="gk-title">Açmak için dokun!</div>
+        <div class="gk-sub">${esc(condText(g))} ✓</div>
       </div>
     </button>`;
   }
   return `
-  <div class="gift opened">
-    <div class="gift-box">${g.delivered ? '💝' : '🎉'}</div>
-    <div class="gift-body">
-      <div class="gift-name">${esc(g.name)}</div>
-      <div class="gift-cond">${esc(condText(g))} ✓</div>
+  <div class="gk opened ${g.delivered ? 'delivered' : ''}">
+    <div class="gk-art">${giftBox({ size: 92, cat: true, open: true })}</div>
+    <div class="gk-main">
+      <span class="gk-kind">${g.delivered ? '💝 Teslim edildi' : '⏳ Teslim bekliyor'}</span>
+      <div class="gk-title">${esc(g.name)}</div>
+      <div class="gk-sub">${esc(condText(g))} ✓</div>
     </div>
-    <span class="gift-state ${g.delivered ? 'done' : ''}">${g.delivered ? 'Teslim edildi ✓' : 'Teslim bekliyor'}</span>
   </div>`;
 }
 
 export function render() {
-  const state = store.get();
-  const st = summarize(state);
-  const opened = store.openedMap(state);
-  const all = (state.gifts || []).map(g => ({ g, p: giftProgress(g, st) }));
-  const won = all.filter(x => x.p.unlocked);
-  const todo = all.filter(x => !x.p.unlocked);
-  const waiting = won.some(x => !opened[x.g.id]);
+  const { list } = giftStates();
+  const won = list.filter(x => x.status !== 'locked');
+  const todo = list.filter(x => x.status === 'locked');
+  const waiting = won.some(x => x.status === 'ready');
   if (!mode) mode = waiting || !todo.length ? 'basket' : 'todo';
+  const pct = list.length ? (won.length / list.length) * 100 : 0;
 
-  // sepette: açılmayı bekleyenler, teslim bekleyenler, en sonda teslim edilenler
-  const wonRank = ({ g }) => !opened[g.id] ? 0 : g.delivered ? 2 : 1;
-  won.sort((a, b) => wonRank(a) - wonRank(b));
-  // kazanılacaklar: en yakın olan üstte
-  todo.sort((a, b) => (b.p.cur / b.g.target) - (a.p.cur / a.g.target));
+  if (!list.length) {
+    return `<div class="gpage"><div class="card"><div class="empty"><div>🎁</div>Henüz hediye eklenmedi.</div></div></div>`;
+  }
 
   const body = mode === 'basket'
-    ? (won.length
-        ? `<div class="card gifts">${won.map(x => wonRow(x.g, opened)).join('')}</div>`
-        : `<div class="card"><div class="empty"><div>🧺</div>Sepetin henüz boş.<br>Kazanılacak hediyelere bak, ilki çok yakın olabilir!</div></div>`)
-    : (todo.length
-        ? `<div class="card gifts">${todo.map(x => lockedRow(x.g, st, x.p)).join('')}</div>
-           <p class="hint">Hediyenin ne olduğu kazanınca, kutuyu açtığında belli olur 🤫</p>`
-        : `<div class="card"><div class="empty"><div>🏆</div>Hepsini kazandın! Sepetine bak 💗</div></div>`);
+    ? (won.length ? `<div class="gks">${won.map(card).join('')}</div>`
+      : `<div class="card"><div class="empty"><div>🧺</div>Sepetin henüz boş.<br>Kazanılacak hediyelere bak, ilki çok yakın olabilir!</div></div>`)
+    : (todo.length ? `<div class="gks">${todo.map(card).join('')}</div>
+         <p class="hint">Hediyenin ne olduğu kazanınca, kutuyu açtığında belli olur 🤫</p>`
+      : `<div class="card"><div class="empty"><div>🏆</div>Hepsini kazandın! Sepetine bak 💗</div></div>`);
 
-  const pct = all.length ? (won.length / all.length) * 100 : 0;
   return `
-  <div class="card badge-summary">
-    <div class="badge-sum-head">
-      <div class="badge-sum-num">${won.length}<i>/${all.length}</i></div>
-      <div class="badge-sum-lbl">hediye kazandın 🎁</div>
+  <div class="gpage">
+    ${carousel(list)}
+    <div class="ghead">
+      <div class="ghead-num"><b>${won.length}</b>/${list.length}<small>hediye kazandın</small></div>
+      <span class="ghead-bar"><i style="width:${pct}%"></i></span>
     </div>
-    <span class="badge-sum-bar"><i style="width:${pct}%"></i></span>
-  </div>
-  <div class="subtabs gift-tabs">
-    <button type="button" class="subtab ${mode === 'basket' ? 'on' : ''}" data-gmode="basket">🧺 Sepetim (${won.length})</button>
-    <button type="button" class="subtab ${mode === 'todo' ? 'on' : ''}" data-gmode="todo">🎯 Kazanılacak Hediyeler (${todo.length})</button>
-  </div>
-  ${body}`;
+    <div class="bfilters gift-tabs">
+      <button type="button" class="seg ${mode === 'basket' ? 'on' : ''}" data-gmode="basket">🧺 Sepetim (${won.length})</button>
+      <button type="button" class="seg ${mode === 'todo' ? 'on' : ''}" data-gmode="todo">🎯 Kazanılacak (${todo.length})</button>
+    </div>
+    ${body}
+  </div>`;
 }
 
 export function bind(root, ctx) {
+  const open = id => {
+    const g = store.findGift(id);
+    if (!g) return;
+    playReveal(g.name, {
+      onBurst: () => { store.markGiftOpened(id); confetti(2600); },
+      onClose: () => { store.markGiftOpened(id); ctx.refreshHeader(); ctx.rerender(); },
+    });
+  };
+
   root.addEventListener('click', e => {
     const tab = e.target.closest('[data-gmode]');
     if (tab) { mode = tab.dataset.gmode; ctx.rerender(); return; }
 
-    const btn = e.target.closest('[data-opengift]');
-    if (!btn || btn.classList.contains('opening')) return;
-    const id = btn.dataset.opengift;
-    btn.classList.add('opening');           // kutu büyüyüp kaybolur
-    setTimeout(() => {
-      store.markGiftOpened(id);
-      confetti(2400);
-      ctx.refreshHeader();
-      ctx.rerender();
-      const g = store.findGift(id);
-      if (g) ctx.toast(`🎉 ${g.name}`);
-    }, 750);
+    const st = e.target.closest('[data-gstep]');
+    if (st) { focus += Number(st.dataset.gstep); ctx.rerender(); return; }
+
+    const og = e.target.closest('[data-opengift]');
+    if (og) { open(og.dataset.opengift); return; }
+
+    // yandaki slayta dokununca ortaya gelsin
+    const fs = e.target.closest('[data-gfocus]');
+    if (fs && fs.dataset.gfocus !== '0') { focus += Number(fs.dataset.gfocus); ctx.rerender(); }
   });
+
+  root.addEventListener('keydown', e => {
+    const og = e.target.closest?.('[data-opengift]');
+    if (og && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(og.dataset.opengift); }
+  });
+
+  // karoselde kaydırma (dokunmatik)
+  let sx = null;
+  root.addEventListener('touchstart', e => { if (e.target.closest('[data-gcarousel]')) sx = e.touches[0].clientX; }, { passive: true });
+  root.addEventListener('touchend', e => {
+    if (sx === null) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    sx = null;
+    if (Math.abs(dx) > 40) { focus += dx < 0 ? 1 : -1; ctx.rerender(); }
+  }, { passive: true });
 }

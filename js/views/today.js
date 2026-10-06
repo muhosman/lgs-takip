@@ -83,15 +83,14 @@ function calendar() {
 
   const grid = cells.map((c, i) => {
     const col = (lead + i) % 7;
-    const prev = cells[i - 1], next = cells[i + 1];
-    const chainL = c.status === 'perfect' && prev?.status === 'perfect' && col !== 0;
+    const next = cells[i + 1];
     const chainR = c.status === 'perfect' && next?.status === 'perfect' && col !== 6;
     const d = dateOf(c.key).getDate();
     return `
     <button type="button" class="cal-d ${c.status} ${c.key === selDay ? 'sel' : ''} ${c.key === today ? 'is-today' : ''} ${c.status !== 'future' && !editable(c.key) ? 'old' : ''}"
             data-day="${c.key}" ${c.status === 'future' ? 'disabled' : ''} style="--i:${(Math.floor((lead + i) / 7) + col)}"
             title="${fmtLongDay(c.key)}${c.goal ? ` · ${c.q}/${c.goal} soru` : ''}">
-      ${chainL ? '<span class="cal-chain l"></span>' : ''}${chainR ? '<span class="cal-chain r"></span>' : ''}
+      ${chainR ? '<span class="cal-chain r"></span>' : ''}
       ${c.fire ? `<span class="flame f${c.fire}" title="Hedefin ${c.fire === 3 ? '2 katı' : 'çok üstü'}!"><i></i><i></i><i></i><i></i><em></em><em></em>${c.fire === 3 ? '<em></em>' : ''}</span>` : ''}
       ${c.status === 'perfect' ? `<span class="cal-star" style="--sd:${(i % 5) * .45}s"><b>★</b><i>✦</i><i>★</i><i>✦</i></span>` : ''}
       <span class="cal-top"><em>${c.status === 'partial' ? '%' + c.pct : ''}</em></span>

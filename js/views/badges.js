@@ -238,6 +238,7 @@ export function render() {
   const warn = streakWarning(state);
 
   return `
+  <div class="bdark bpage">
   <div class="btop ${warn ? 'has-warn' : ''}">
   ${summaryCards(states)}
     ${warn}
@@ -245,7 +246,8 @@ export function render() {
   <div id="bControls">${chipsHtml(states)}</div>
   <div id="bList">${listHtml(states, risk)}</div>
   <div id="bSheet"></div>
-  <p class="hint">Rozetin çerçevesi zorluğunu gösterir: bronz, gümüş, altın, elmas 💎</p>`;
+  <p class="hint">Rozetin çerçevesi zorluğunu gösterir: bronz, gümüş, altın, elmas 💎</p>
+  </div>`;
 }
 
 export function bind(root) {

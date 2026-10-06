@@ -257,7 +257,7 @@ function renderTab(tab) {
   const old = $('#view');
   const root = document.createElement('main');
   root.id = 'view';
-  root.className = 'view';
+  root.className = sameTab ? 'view' : 'view view-enter';
   root.innerHTML = view.render();
   old.replaceWith(root);
 

@@ -352,7 +352,10 @@ label.lbl{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
 }
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
-.view{animation:fadeUp .3s ease}
+/* Yalnız sekme değişiminde, kaydırmasız solma: transform kullanılırsa içindeki
+   drawer/modal (position:fixed) animasyon süresince sayfaya göre konumlanıp sıçrıyordu */
+.view.view-enter{animation:viewIn .28s ease}
+@keyframes viewIn{from{opacity:0}to{opacity:1}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
 
 @media (min-width:760px){
@@ -1340,14 +1343,14 @@ h1,h2,h3,h4{letter-spacing:-.2px}
 .tactivity-range{font-size:11.5px;color:var(--ink-soft);background:var(--bg);border-radius:10px;padding:6px 10px}
 
 @media (max-width:1180px){
-  /* tek sütun: uyarı, kartlar, dersler, grafik, en altta profil/XP */
+  /* tek sütun: uyarı, Hedefim/son deneme, rozet-hediye, grafik, profil */
   .tdash{grid-template-columns:minmax(0,1fr)}
   .tright,.tleft{display:contents}
   #warnSlot{order:-3}
   .tacts{order:-2}
-  .tlessons{order:-1}
+  #tHub{order:-1}
   #tActivity{order:1}
-  .tright-top{order:2}
+  #tProfile{order:2}
 }
 @media (max-width:560px){
   .tright{padding:12px;border-radius:24px}
@@ -1595,3 +1598,207 @@ body[data-tab="today"] .top-badges .chip-gift{display:none !important}
   .tdash.anim *,.tdash.anim #tActivity,.tdash.anim #tProfile,.tdash.anim #tXp,.tdash.anim #warnSlot,.tdash.anim #tGoal{animation:none !important}
   .tdash.anim .curves path[fill="none"]{stroke-dasharray:none;stroke-dashoffset:0}
 }
+
+/* ============ ROZET KARTI (oyun rozeti görünümü) ============ */
+.bcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:34px 14px;padding-top:30px}
+.bc{
+  position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;
+  background:linear-gradient(180deg,#fff,#FBF5F9);border:1.5px solid var(--line);border-radius:22px;
+  padding:58px 12px 26px;margin-top:6px;box-shadow:var(--shadow-sm);transition:transform .18s,box-shadow .18s;
+}
+.bc:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(150,70,120,.14)}
+.bc-emblem{position:absolute;top:-34px;left:50%;transform:translateX(-50%);width:84px;height:92px}
+.bc-hex{
+  position:absolute;inset:0;clip-path:polygon(50% 0,100% 24%,100% 76%,50% 100%,0 76%,0 24%);
+  background:linear-gradient(160deg,#CBD3E6,#9AA7C4);display:grid;place-items:center;
+}
+.bc-hex-in{
+  width:76%;height:76%;clip-path:polygon(50% 0,100% 24%,100% 76%,50% 100%,0 76%,0 24%);
+  background:linear-gradient(160deg,#EEF2FA,#C9D2E6);display:grid;place-items:center;
+}
+.bc-ico{font-size:30px;filter:grayscale(1) opacity(.55)}
+.bc-step{
+  position:absolute;top:2px;right:-12px;min-width:26px;height:26px;padding:0 6px;border-radius:99px;
+  background:#7A4FD6;color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;
+  box-shadow:0 4px 10px rgba(122,79,214,.4);border:2px solid #fff;
+}
+.bc-crown{position:absolute;top:-22px;left:50%;transform:translateX(-50%) rotate(-8deg);font-size:24px;z-index:2;filter:drop-shadow(0 3px 5px rgba(226,174,31,.5))}
+.bc-name{font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ink);line-height:1.2}
+.bc-sub{font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ink-soft)}
+.bc-prog{display:flex;align-items:center;gap:7px;width:100%;margin-top:6px}
+.bc-bar{flex:1;height:7px;border-radius:99px;background:#EDE3EC;overflow:hidden}
+.bc-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#4FC9A6,#3FBF8F)}
+.bc-num{font-size:11.5px;font-weight:800;color:#2E9E7A;min-width:20px;text-align:right}
+.bc-desc{font-size:11px;color:var(--ink-soft);line-height:1.35;margin-top:4px}
+.bc-desc b{color:#D64257}
+.bc-congrats{font-size:11.5px;font-weight:700;color:#9A6512;line-height:1.35;margin-top:6px}
+.bc-ribbon{
+  position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  padding:5px 14px;border-radius:9px;font-size:10.5px;font-weight:800;letter-spacing:.6px;color:#fff;
+  background:linear-gradient(90deg,#8B5BE6,#6A3FD0);box-shadow:0 6px 14px rgba(106,63,208,.35);
+}
+.bc-ribbon.muted{background:#C9BFD9;box-shadow:none}
+.bc-ribbon.done{background:linear-gradient(90deg,#F7B52C,#F08A1C);box-shadow:0 6px 14px rgba(240,138,28,.4)}
+
+/* kazanılmış: amblem zorluk renginde parlar */
+.bc.earned .bc-ico{filter:none}
+.bc.earned.r-bronze .bc-hex{background:linear-gradient(160deg,#F2B680,#B86A35)}
+.bc.earned.r-bronze .bc-hex-in{background:linear-gradient(160deg,#FFE8D3,#F2BE92)}
+.bc.earned.r-silver .bc-hex{background:linear-gradient(160deg,#E6ECF5,#8D9AB3)}
+.bc.earned.r-silver .bc-hex-in{background:linear-gradient(160deg,#FFFFFF,#D5DCE8)}
+.bc.earned.r-gold .bc-hex{background:linear-gradient(160deg,#FFE27A,#D99A12)}
+.bc.earned.r-gold .bc-hex-in{background:linear-gradient(160deg,#FFF7D6,#FFD86B)}
+.bc.earned.r-diamond .bc-hex{background:linear-gradient(160deg,#9FE3FF,#8E7CFF 55%,#F59AD8)}
+.bc.earned.r-diamond .bc-hex-in{background:linear-gradient(160deg,#F2FBFF,#C9E9FF 50%,#E6D9FF)}
+.bc.earned .bc-emblem{filter:drop-shadow(0 8px 14px rgba(150,70,120,.25))}
+.bc.earned.r-gold .bc-emblem{filter:drop-shadow(0 0 14px rgba(255,200,60,.55))}
+.bc.earned.r-diamond .bc-emblem{animation:bc-glow 3.2s ease-in-out infinite}
+@keyframes bc-glow{0%,100%{filter:drop-shadow(0 0 12px rgba(127,200,255,.7))}50%{filter:drop-shadow(0 0 18px rgba(230,140,255,.75))}}
+.bc.earned{border-color:color-mix(in srgb,var(--r-silver) 50%,#fff)}
+.bc.earned.r-gold{border-color:#F3D27A}
+.bc.earned.r-diamond{border-color:#C7C0FF}
+.bc.crown{border:2px solid #F3C34B;background:linear-gradient(180deg,#FFFDF5,#FFF5DA)}
+/* sıradaki: canlı ama soluk renk, kilitli uzaklar soluk mavi-gri */
+.bc.next .bc-ico{filter:grayscale(.2) opacity(.9)}
+.bc.next .bc-hex{background:linear-gradient(160deg,#F7B7D2,#C98BE8)}
+.bc.next .bc-hex-in{background:linear-gradient(160deg,#FFF3F8,#F6DDEB)}
+.bc.far{opacity:.72}
+.bc.danger{border-color:#FFB3BE;background:linear-gradient(180deg,#fff,#FFF2F4)}
+.bc.danger .bc-bar i{background:linear-gradient(90deg,#F08A9B,#D64257)}
+@media (prefers-reduced-motion:reduce){.bc.earned.r-diamond .bc-emblem{animation:none}}
+@media (max-width:560px){
+  .bcards{grid-template-columns:repeat(2,minmax(0,1fr));gap:34px 10px}
+  .bc{padding:54px 8px 24px}
+  .bc-name{font-size:11.5px}
+}
+
+/* ============ BUGÜN (revize): sağ sütun profil + karolar + uyarı ============ */
+.tdash{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}
+.tright{gap:16px}
+.tprofile{padding:12px 12px 14px}
+.txp-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:2px 4px 6px}
+.txp-line .txp-val{font-size:24px}
+.txp-line .txp-lbl{margin:0;font-size:11.5px}
+.tprofile .txp-bar{margin:0 4px 12px}
+
+.thub{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.thub-t{
+  position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;
+  border-radius:24px;padding:16px;min-height:176px;color:#fff;overflow:hidden;transition:transform .15s;
+}
+.thub-t:hover{transform:translateY(-2px)}
+.thub-t:active{transform:scale(.98)}
+.thub-t::after{content:'';position:absolute;right:-30px;bottom:-30px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.14)}
+.thub-t.tb{background:linear-gradient(150deg,#8E7CFF,#6A4FD6);box-shadow:0 14px 30px rgba(106,79,214,.3)}
+.thub-t.tg2{background:linear-gradient(150deg,#4FD1A5,#26A884);box-shadow:0 14px 30px rgba(38,168,132,.3)}
+.thub-t.waiting .thub-ico{animation:gift-wiggle 1.8s ease-in-out infinite}
+.thub-top{display:flex;justify-content:space-between;align-items:flex-start;width:100%;margin-bottom:auto}
+.thub-ico{width:46px;height:46px;border-radius:15px;background:rgba(255,255,255,.25);display:grid;place-items:center;font-size:24px}
+.thub-go{width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.25);display:grid;place-items:center;font-size:13px}
+.thub-val b{font-size:30px;font-weight:800;letter-spacing:-.6px}
+.thub-val small{font-size:14px;opacity:.85;margin-left:2px}
+.thub-lbl{font-size:15px;font-weight:800;margin-top:-4px}
+.thub-icos{display:flex;gap:4px;margin-top:4px;position:relative;z-index:1}
+.thub-icos i{font-style:normal;width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.9);display:grid;place-items:center;font-size:14px}
+.thub-icos em{font-style:normal;font-size:11.5px;opacity:.85}
+.thub-next{font-size:11.5px;opacity:.92;line-height:1.35;position:relative;z-index:1}
+
+/* Hedefim: soru girişini açar */
+.tact{font-family:inherit;text-align:left;border:0}
+.tact-goal{cursor:pointer}
+.tact-goal:hover,.tact-exam[data-examdetail]:hover{transform:translateY(-2px)}
+.tact-exam[data-examdetail]{cursor:pointer}
+.tact-subj{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.tact-subj i{font-style:normal;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.25)}
+
+/* giriş drawer'ı: ders seçimi iki satır, adlar yazılı */
+.ssw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;overflow:visible;margin-bottom:14px}
+.ssw-b{
+  width:auto;height:auto;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 6px;
+  border-radius:16px;font-size:12px;background:color-mix(in srgb,var(--c) 22%,#fff);border:2px solid transparent;
+}
+.ssw-e{font-size:20px;line-height:1.1}
+.ssw-n{font-weight:800;font-size:12px;color:var(--i)}
+.ssw-q{font-size:10.5px;color:var(--ink-soft);font-weight:600}
+.ssw-b.has .ssw-q{color:var(--i)}
+.ssw-b.on{border-color:var(--i);background:color-mix(in srgb,var(--c) 55%,#fff);transform:none;box-shadow:0 6px 14px rgba(150,70,120,.12)}
+.sname{display:flex;align-items:center;gap:8px;font-weight:800;font-size:16px;margin:2px 2px 12px;color:var(--i)}
+.sname span{font-size:20px}
+
+/* deneme ayrıntısı drawer'ı */
+.estats{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px}
+.erows{display:flex;flex-direction:column;gap:8px}
+.erow{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 12px;border-radius:16px;background:color-mix(in srgb,var(--c) 14%,#fff);border:1px solid color-mix(in srgb,var(--c) 40%,#fff)}
+.erow-ico{font-size:20px}
+.erow-main{display:flex;flex-direction:column;gap:5px;min-width:0}
+.erow-name{font-weight:800;font-size:12.5px;color:var(--i)}
+.erow-bar{height:6px;border-radius:99px;background:#fff;overflow:hidden}
+.erow-bar i{display:block;height:100%;border-radius:99px;background:var(--i)}
+.erow-tags{display:flex;gap:4px}
+.erow-net{font-size:17px;font-weight:800;color:var(--i)}
+.erow-net small{font-size:10.5px;color:var(--ink-soft);font-weight:600}
+.esec{font-weight:800;font-size:13px;margin:16px 2px 8px}
+.etopics{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.etopics li{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--bg);font-size:12.5px}
+.etopic-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ortadaki büyük pencere (rozetler / hediyeler) */
+.tmodal{width:min(960px,94vw);max-height:min(88vh,860px)}
+.tmodal .modal-title small{font-size:13px;color:var(--ink-soft);margin-left:4px}
+.tmodal-tabs{margin:12px 16px 0}
+.tmodal .modal-body{padding:16px 20px 28px;background:var(--bg)}
+.tmodal .bcards{grid-template-columns:repeat(auto-fill,minmax(176px,1fr))}
+.tmodal .xpage{max-width:none}
+
+@media (max-width:560px){
+  .thub{gap:10px}
+  .thub-t{min-height:160px;padding:14px}
+  .ssw{gap:6px}
+  .erow{grid-template-columns:auto minmax(0,1fr) auto;}
+  .erow-tags{display:none}
+  .tmodal .modal-body{padding:12px 12px 24px}
+}
+.tdash.anim .thub-t:nth-child(1){animation:in-right .7s .2s cubic-bezier(.2,.8,.2,1) both}
+.tdash.anim .thub-t:nth-child(2){animation:in-zoom .6s .35s cubic-bezier(.2,.9,.3,1.2) both}
+.tdash.anim .thub-icos i{animation:in-avatar .4s both}
+.tdash.anim .thub-icos i:nth-child(1){animation-delay:.7s}
+.tdash.anim .thub-icos i:nth-child(2){animation-delay:.78s}
+.tdash.anim .thub-icos i:nth-child(3){animation-delay:.86s}
+.tdash.anim .thub-icos i:nth-child(4){animation-delay:.94s}
+.tdash.anim .thub-icos i:nth-child(5){animation-delay:1.02s}
+.tdash.anim .txp-bar i{transform-origin:left;animation:grow-x 1.1s .6s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion:reduce){.tdash.anim .thub-t{animation:none !important}}
+
+/* ============ RÜTBE AMBLEMİ ============ */
+.rank-emblem{overflow:visible;filter:drop-shadow(0 10px 14px rgba(80,20,70,.22))}
+.rank-emblem *{transform-box:fill-box}
+.rk-spark{transform-origin:center;animation:rk-twinkle 2.4s ease-in-out infinite}
+.rk-spark.s2{animation-delay:1.2s}
+@keyframes rk-twinkle{0%,100%{opacity:.25;transform:scale(.6)}50%{opacity:1;transform:scale(1.1)}}
+/* açılışta süsler sırayla çıkar */
+.tdash.anim .rank-emblem .rk-wl{transform-origin:right center;animation:rk-wing .7s .9s cubic-bezier(.2,.9,.3,1.2) both}
+.tdash.anim .rank-emblem .rk-wr{transform-origin:left center;animation:rk-wing .7s .9s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes rk-wing{from{opacity:0;transform:scaleX(0) rotate(-12deg)}to{opacity:1;transform:none}}
+.tdash.anim .rank-emblem .rk-al{animation:rk-al .5s 1s cubic-bezier(.2,.9,.3,1.3) both}
+.tdash.anim .rank-emblem .rk-ar{animation:rk-ar .5s 1s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes rk-al{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes rk-ar{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+.tdash.anim .rank-emblem .rk-spike{transform-origin:center;animation:rk-pop .45s both}
+.tdash.anim .rank-emblem .rk-spikes .rk-spike:nth-child(1){animation-delay:1.05s}
+.tdash.anim .rank-emblem .rk-spikes .rk-spike:nth-child(2){animation-delay:1.12s}
+.tdash.anim .rank-emblem .rk-spikes .rk-spike:nth-child(3){animation-delay:1.19s}
+.tdash.anim .rank-emblem .rk-spikes .rk-spike:nth-child(4){animation-delay:1.26s}
+.tdash.anim .rank-emblem .rk-top{transform-origin:center;animation:rk-drop .55s 1.15s cubic-bezier(.2,.9,.3,1.4) both}
+.tdash.anim .rank-emblem .rk-center{transform-origin:center;animation:rk-pop .6s .75s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes rk-pop{from{opacity:0;transform:scale(0) rotate(-30deg)}to{opacity:1;transform:none}}
+@keyframes rk-drop{from{opacity:0;transform:translateY(-14px) scale(.6)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rank-emblem *{animation:none !important}}
+
+/* profil kartında amblem baş harfin yerinde */
+.tprofile-rank{display:block;margin:-46px 0 0 6px;position:relative;width:88px;height:88px}
+.tprofile-rankname{display:inline-flex;align-items:center;gap:6px;margin:6px 0 10px 4px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:99px;background:var(--bg);color:var(--pink-deep)}
+
+.bcards{row-gap:62px;padding-top:38px}
+.ssw-n{text-transform:none}
+.tprofile-rank{width:104px;height:104px;margin:-56px 0 0 0}
+@media (max-width:560px){.bcards{row-gap:58px}}

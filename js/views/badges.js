@@ -21,10 +21,19 @@ function badgeStates(st) {
     seenTrack.add(b.track);
     nextOfTrack.add(b.id);
   }
+  // basamak: rozetin kendi dizisindeki sırası (ör. soru sayısı 3/22)
+  const tracks = new Map();
+  for (const b of BADGES) if (b.track) tracks.set(b.track, [...(tracks.get(b.track) || []), b.target]);
   return BADGES.map(b => {
     const has = earned.has(b.id);
     const [cur, target] = typeof b.progress === 'function' ? b.progress(st) : [has ? 1 : 0, 1];
-    return { b, has, cur, target, ratio: target ? cur / target : 0, isNext: !b.track ? !has : nextOfTrack.has(b.id) };
+    const list = b.track ? [...tracks.get(b.track)].sort((x, y) => x - y) : [1];
+    const step = b.track ? list.indexOf(b.target) + 1 : 1;
+    return {
+      b, has, cur, target, ratio: target ? cur / target : 0,
+      isNext: !b.track ? !has : nextOfTrack.has(b.id),
+      step, steps: list.length, top: step === list.length,
+    };
   });
 }
 
@@ -56,21 +65,36 @@ export function streakWarning(state, { compact = false } = {}) {
 }
 
 /* ---------------- parçalar ---------------- */
-function tile(x, risk) {
-  const { b, has, cur, target, isNext } = x;
+/**
+ * Rozet kartı (oyun rozeti görünümü): altıgen amblem, basamak numarası, ad, zorluk,
+ * ilerleme, açıklama ve altta basamak şeridi. Rozetler sayfası ve Bugün penceresi kullanır.
+ */
+export function badgeCard(x, risk = {}) {
+  const { b, has, cur, target, isNext, step, steps, top } = x;
   const state = has ? 'earned' : isNext ? 'next' : 'far';
-  const pct = Math.min(100, x.ratio * 100);
-  const danger = !has && b.live === 'streak' && risk.atRisk
-              || !has && b.live === 'curGoalStreak' && risk.goalAtRisk;
+  const pct = has ? 100 : Math.min(100, x.ratio * 100);
+  const danger = !has && (b.live === 'streak' && risk.atRisk || b.live === 'curGoalStreak' && risk.goalAtRisk);
+  const ribbon = has
+    ? (top ? '<span class="bc-ribbon done">TAMAM</span>' : `<span class="bc-ribbon">BASAMAK ${step}/${steps}</span>`)
+    : `<span class="bc-ribbon ${isNext ? '' : 'muted'}">BASAMAK ${step}/${steps}</span>`;
   return `
-  <button type="button" class="bt ${state} r-${b.rarity} ${danger ? 'danger' : ''}" data-badge="${b.id}">
-    <span class="bt-ico">${has || isNext ? b.ico : '🔒'}</span>
-    <span class="bt-name">${esc(b.name)}</span>
-    ${!has && typeof b.progress === 'function' && isNext ? `
-      <span class="bt-bar"><i style="width:${pct}%"></i></span>
-      <span class="bt-num">${nf(cur)}/${nf(target)}</span>` : `<span class="bt-desc">${esc(b.desc)}</span>`}
+  <button type="button" class="bc ${state} r-${b.rarity} ${has && top ? 'crown' : ''} ${danger ? 'danger' : ''}" data-badge="${b.id}">
+    <span class="bc-emblem">
+      ${has && top ? '<span class="bc-crown" aria-hidden="true">👑</span>' : ''}
+      <span class="bc-hex"><span class="bc-hex-in"><span class="bc-ico">${b.ico}</span></span></span>
+      ${steps > 1 ? `<span class="bc-step">${step}</span>` : ''}
+    </span>
+    <span class="bc-name">${esc(b.name)}</span>
+    <span class="bc-sub">${esc(RARITY[b.rarity] || '')}</span>
+    ${has && top
+      ? '<span class="bc-congrats">Tebrikler!<br>En üst basamağa ulaştın.</span>'
+      : `<span class="bc-prog"><span class="bc-bar"><i style="width:${pct}%"></i></span><span class="bc-num">${has ? '✓' : nf(cur)}</span></span>
+         <span class="bc-desc">${esc(b.desc)}${danger ? '<br><b>⚠️ Bugün çalışmazsan sıfırlanır</b>' : ''}</span>`}
+    ${ribbon}
   </button>`;
 }
+
+const tile = (x, risk) => badgeCard(x, risk);
 
 function groupCard(g, items, risk) {
   const got = items.filter(x => x.has).length;
@@ -82,7 +106,7 @@ function groupCard(g, items, risk) {
       <span class="bgroup-count">${got}/${all}</span>
     </div>
     <span class="bgroup-bar"><i style="width:${all ? (got / all) * 100 : 0}%"></i></span>
-    <div class="btiles">${items.map(x => tile(x, risk)).join('')}</div>
+    <div class="bcards">${items.map(x => tile(x, risk)).join('')}</div>
   </section>`;
 }
 
@@ -94,7 +118,7 @@ function listHtml(states, risk) {
     // kazanmaya en yakınlar tek listede, oran sırasıyla
     const list = pool.filter(x => !x.has && x.isNext).sort((a, b) => b.ratio - a.ratio);
     return list.length
-      ? `<div class="bgroup"><div class="btiles">${list.map(x => tile(x, risk)).join('')}</div></div>`
+      ? `<div class="bgroup"><div class="bcards">${list.map(x => tile(x, risk)).join('')}</div></div>`
       : `<div class="card"><div class="empty"><div>🏆</div>Bu grupta kazanılacak rozet kalmadı!</div></div>`;
   }
   if (filter === 'earned') pool = pool.filter(x => x.has);

@@ -843,6 +843,8 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 .gadm-main{flex:1;min-width:0}
 .gadm-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gadm-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+.gadm-edit{width:30px;height:30px;border-radius:10px;background:#FFF0F5;font-size:13px;flex-shrink:0}
+.gadm.editing{flex-direction:column;align-items:stretch;gap:8px;padding:12px 0}
 .gadm-done{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--ink-soft);flex-shrink:0}
 
 /* ============ ROZETLER (yeni) ============ */

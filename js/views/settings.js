@@ -7,9 +7,30 @@ import { summarize, giftProgress } from '../gamify.js';
 
 // Hediye düzenleyicisi bu oturumda şifreyle açıldı mı? Sekmeden çıkınca kapanır.
 let giftsOpen = false;
-export const lockGifts = () => { giftsOpen = false; };
+let editingGift = null;    // düzenlenen hediyenin id'si
+export const lockGifts = () => { giftsOpen = false; editingGift = null; };
+
+const kindOptions = sel => GIFT_KINDS.map(k =>
+  `<option value="${k.key}" ${k.key === sel ? 'selected' : ''}>${esc(k.label)}</option>`).join('');
+
+function giftEditRow(g) {
+  return `
+  <li class="gadm editing">
+    <input class="inp" type="text" maxlength="80" value="${esc(g.name)}" data-ge="name" aria-label="Hediye">
+    <div class="frow">
+      <div><select class="inp" data-ge="kind" aria-label="Koşul">${kindOptions(g.kind)}</select></div>
+      <div><input class="inp" type="number" inputmode="numeric" min="1" value="${g.target}" data-ge="target" aria-label="Hedef"></div>
+    </div>
+    <p class="hint" style="text-align:left;margin:0">Koşulu ya da hedefi değiştirirsen hediye baştan başlar.</p>
+    <div class="btn-row">
+      <button type="button" class="btn-primary" data-gsave="${g.id}">Kaydet</button>
+      <button type="button" class="btn-ghost" data-gcancel>İptal</button>
+    </div>
+  </li>`;
+}
 
 function giftAdminRow(g, st, opened) {
+  if (editingGift === g.id) return giftEditRow(g);
   const p = giftProgress(g, st);
   const cur = g.kind === 'net' ? fmtNet(p.cur) : Math.floor(p.cur);
   const status = !p.unlocked ? `🔒 ${cur}/${g.target}` : opened[g.id] ? '🎉 açıldı' : '🎁 hazır, açılmadı';
@@ -20,6 +41,7 @@ function giftAdminRow(g, st, opened) {
       <div class="gadm-sub">${esc(GIFT_KIND_MAP[g.kind]?.cond(g.target) || '')} · ${status}</div>
     </div>
     <label class="gadm-done"><input type="checkbox" data-gdeliver="${g.id}" ${g.delivered ? 'checked' : ''}> teslim</label>
+    <button type="button" class="gadm-edit" data-gedit="${g.id}" aria-label="düzenle">✏️</button>
     <button type="button" class="del-x" data-gdel="${g.id}" aria-label="sil">🗑</button>
   </li>`;
 }
@@ -61,7 +83,7 @@ function giftCard(s) {
       <div class="frow" style="margin-top:9px">
         <div>
           <label class="lbl" for="gKind">Koşul</label>
-          <select id="gKind" class="inp">${GIFT_KINDS.map(k => `<option value="${k.key}">${esc(k.label)}</option>`).join('')}</select>
+          <select id="gKind" class="inp">${kindOptions('net')}</select>
         </div>
         <div>
           <label class="lbl" for="gTarget">Hedef</label>
@@ -136,17 +158,7 @@ export function render() {
         ? 'Buluttaki verinin bir kopyasını dosya olarak da saklamak istersen 🌸'
         : 'Veriler bu tarayıcıda saklanır. Telefon değiştirirsen veya tarayıcıyı temizlersen kaybolmasın diye ara ara yedek al 🌸'}
     </p>
-    <div class="btn-row">
-      <button type="button" id="exportBtn" class="btn-ghost">⬇️ Yedek indir</button>
-      <button type="button" id="importBtn" class="btn-ghost">⬆️ Yedek yükle</button>
-    </div>
-    <input id="importFile" type="file" accept="application/json,.json" hidden>
-  </div>
-
-  <div class="card">
-    <div class="card-title">🧹 Sıfırla</div>
-    <p class="hint" style="text-align:left;margin:0 0 11px">Tüm soru kayıtları ve denemeler silinir. Ayarların korunur.${sync.enabled() ? ' Buluttaki kopya da silinir.' : ''}</p>
-    <button type="button" id="resetBtn" class="btn-danger">Tüm verileri sil</button>
+    <button type="button" id="exportBtn" class="btn-ghost">⬇️ Yedek indir</button>
   </div>
 
   <div class="card">
@@ -201,36 +213,6 @@ export function bind(root, ctx) {
     ctx.toast('Yedek indirildi 💾');
   });
 
-  $('#importBtn').addEventListener('click', () => $('#importFile').click());
-
-  $('#importFile').addEventListener('change', e => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        store.replaceAll(JSON.parse(reader.result));
-        ctx.toast('Yedek yüklendi ✅');
-        ctx.refreshHeader();
-        ctx.rerender();
-      } catch (err) {
-        ctx.toast('Dosya okunamadı 😔');
-        console.warn(err);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  });
-
-  $('#resetBtn').addEventListener('click', () => {
-    if (!confirm('Tüm soru kayıtların ve denemelerin silinecek. Emin misin?')) return;
-    if (!confirm('Gerçekten emin misin? Bu işlem geri alınamaz.')) return;
-    store.resetAll();
-    ctx.refreshHeader();
-    ctx.rerender();
-    ctx.toast('Veriler sıfırlandı');
-  });
-
   $('#syncBtn')?.addEventListener('click', () => ctx.syncNow());
 
   /* ---- hediyeler ---- */
@@ -282,6 +264,25 @@ export function bind(root, ctx) {
   });
 
   root.addEventListener('click', e => {
+    const ed = e.target.closest('[data-gedit]');
+    if (ed) { editingGift = ed.dataset.gedit; ctx.rerender(); return; }
+    if (e.target.closest('[data-gcancel]')) { editingGift = null; ctx.rerender(); return; }
+
+    const sv = e.target.closest('[data-gsave]');
+    if (sv) {
+      const row = sv.closest('.gadm');
+      const val = k => row.querySelector(`[data-ge="${k}"]`).value;
+      const target = clampInt(val('target'), 0, 999999);
+      if (!val('name').trim()) { ctx.toast('Hediyenin adını yaz'); return; }
+      if (!GIFT_KIND_MAP[val('kind')] || target < 1) { ctx.toast('Hedefi gir'); return; }
+      store.updateGift(sv.dataset.gsave, { name: val('name'), kind: val('kind'), target });
+      editingGift = null;
+      ctx.refreshHeader();
+      ctx.rerender();
+      ctx.toast('Hediye güncellendi 🎁');
+      return;
+    }
+
     const del = e.target.closest('[data-gdel]');
     if (!del) return;
     const g = store.findGift(del.dataset.gdel);

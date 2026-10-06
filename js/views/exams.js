@@ -1,123 +1,272 @@
-// "Denemeler" ekranı — deneme girişi, net/puan tahmini, trend
-import { SUBJECTS } from '../data.js';
+// "Denemeler" ekranı — özet, puan grafiği, konu yanlışları ve deneme geçmişi.
+// Ekleme/düzenleme sağdan açılan drawer'da; yönetici şifresiyle korunur.
+import { SUBJECTS, SUBJ_MAP } from '../data.js';
 import * as store from '../store.js';
 import { netOf, fmtNet, estimateScore, todayKey, dateOf, fmtShort, clampInt, esc } from '../utils.js';
 import { line } from '../charts.js';
 import { confetti } from '../confetti.js';
+import * as admin from '../admin.js';
+
+// drawer: null | { mode:'add' } | { mode:'edit', id }
+let drawer = null;
+let justOpened = false;
+// formdaki konu kutularının adları: data-tp="ders:sıra" ile eşleşir (adlarda tırnak olabilir)
+let formTopics = {};
+
+export const reset = () => { drawer = null; };
 
 const examNet = ex => SUBJECTS.reduce((a, s) => a + netOf(ex.subjects[s.key]?.d, ex.subjects[s.key]?.y), 0);
+const topicKey = n => String(n).trim().toLocaleLowerCase('tr');
 
+/** Bir dersin konuları: Kitaplar'daki ünite adları (tekrarsız) + düzenlenen denemede kayıtlı olanlar */
+function topicsOf(subject, ex) {
+  const seen = new Map();
+  const add = n => {
+    const name = String(n || '').trim();
+    if (name && !seen.has(topicKey(name))) seen.set(topicKey(name), name);
+  };
+  for (const b of store.get().books || []) {
+    if (b.subject === subject) (b.units || []).forEach(u => add(u.name));
+  }
+  Object.keys(ex?.topics?.[subject] || {}).forEach(add);
+  return [...seen.values()];
+}
+
+/** Denemedeki konu yanlışları, en çoktan aza: [{ subject, name, y }] */
+const examTopics = ex => Object.entries(ex.topics || {})
+  .flatMap(([subject, m]) => Object.entries(m).map(([name, y]) => ({ subject, name, y })))
+  .filter(t => t.y > 0)
+  .sort((a, b) => b.y - a.y);
+
+/** Tüm denemelerden konu bazında toplam yanlış */
+function weakTopics(exams) {
+  const m = new Map();
+  for (const ex of exams) {
+    for (const t of examTopics(ex)) {
+      const k = t.subject + '|' + topicKey(t.name);
+      const cur = m.get(k) || { ...t, y: 0, n: 0 };
+      cur.y += t.y; cur.n++;
+      m.set(k, cur);
+    }
+  }
+  return [...m.values()].sort((a, b) => b.y - a.y);
+}
+
+/* ---------------- deneme kartı ---------------- */
 function examCard(ex) {
   const score = estimateScore(ex.subjects);
   const total = examNet(ex);
+  const tops = examTopics(ex).slice(0, 3);
+  const unlocked = admin.isUnlocked();
   return `
-  <div class="exam-item">
-    <div class="exam-top">
-      <div style="flex:1;min-width:0">
-        <div class="exam-name">${esc(ex.name)}</div>
-        <div class="exam-date">${fmtShort(dateOf(ex.date))} ${dateOf(ex.date).getFullYear()} · ${fmtNet(total)} net</div>
+  <article class="xcard">
+    <div class="xcard-top">
+      <div class="xcard-title">
+        <div class="xcard-name">${esc(ex.name)}</div>
+        <div class="xcard-date">${fmtShort(dateOf(ex.date))} ${dateOf(ex.date).getFullYear()}</div>
       </div>
-      <div class="exam-score">${score}<small>tahmini puan</small></div>
-      <button type="button" class="del-x" data-del="${ex.id}" aria-label="sil">🗑</button>
+      <div class="xcard-nums">
+        <span><b>${fmtNet(total)}</b>net</span>
+        <span class="xcard-score"><b>${score}</b>puan</span>
+      </div>
+      ${unlocked ? `
+        <div class="xcard-acts">
+          <button type="button" class="ga-btn" data-edit="${ex.id}" aria-label="düzenle">✏️</button>
+          <button type="button" class="ga-btn danger" data-del="${ex.id}" aria-label="sil">🗑</button>
+        </div>` : ''}
     </div>
-    <div class="exam-bars">
+    <div class="xbars">
       ${SUBJECTS.map(s => {
         const r = ex.subjects[s.key] || { d: 0, y: 0 };
         const n = netOf(r.d, r.y);
-        const h = Math.round((n / s.q) * 100);
-        return `<div class="exam-bar">
-          <div class="bar"><div class="fill" style="height:${h}%;background:${s.color}"></div></div>
-          <div class="n">${fmtNet(n)}</div>
-          <div class="t">${esc(s.name.split(' ')[0].slice(0, 5))}</div>
+        return `<div class="xbar" title="${esc(s.name)}: ${r.d || 0} doğru, ${r.y || 0} yanlış">
+          <span class="xbar-track"><i style="width:${Math.round((n / s.q) * 100)}%;background:${s.color}"></i></span>
+          <span class="xbar-lbl">${s.emoji} ${fmtNet(n)}</span>
         </div>`;
       }).join('')}
     </div>
+    ${tops.length ? `
+      <div class="xcard-topics">❌ ${tops.map(t => `<span>${esc(t.name)} <b>${t.y}</b></span>`).join('')}</div>` : ''}
+  </article>`;
+}
+
+/* ---------------- drawer: form ---------------- */
+function subjectBlock(s, ex) {
+  const r = ex?.subjects?.[s.key] || {};
+  const topics = topicsOf(s.key, ex);
+  formTopics[s.key] = topics;
+  const saved = ex?.topics?.[s.key] || {};
+  const marked = Object.values(saved).reduce((a, v) => a + (v || 0), 0);
+  return `
+  <div class="xs" style="--c:${s.color};--i:${s.ink}">
+    <div class="xs-row">
+      <div class="xs-name">${s.emoji} ${esc(s.name)} <small>/${s.q}</small></div>
+      <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0" value="${r.d || ''}" data-ex="${s.key}" data-f="d" aria-label="${esc(s.name)} doğru">
+      <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0" value="${r.y || ''}" data-ex="${s.key}" data-f="y" aria-label="${esc(s.name)} yanlış">
+    </div>
+    <details class="xs-topics" ${marked ? 'open' : ''}>
+      <summary>📚 Konu yanlışları <span data-tpsum="${s.key}">${marked ? `${marked} yanlış işaretli` : ''}</span></summary>
+      ${topics.length ? `
+        <ul class="xt-list">${topics.map((name, i) => `
+          <li class="xt">
+            <span class="xt-name">${esc(name)}</span>
+            <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0"
+                   value="${saved[name] || ''}" data-tp="${s.key}:${i}" aria-label="${esc(name)} yanlış">
+          </li>`).join('')}
+        </ul>`
+        : '<p class="xt-empty">Kitaplar sekmesine bu dersin kitabını ve ünitelerini eklersen konular burada çıkar.</p>'}
+    </details>
   </div>`;
 }
 
+function drawerHtml() {
+  if (!drawer) return '';
+  const ex = drawer.mode === 'edit' ? store.get().exams.find(e => e.id === drawer.id) : null;
+  const title = ex ? 'Denemeyi düzenle' : 'Yeni deneme';
+  formTopics = {};
+  const body = !admin.isUnlocked()
+    ? admin.gateHtml({ title: 'Deneme girişi', hint: 'Deneme eklemek ya da düzenlemek için yönetici şifresini gir.' })
+    : `
+      <div class="frow">
+        <div>
+          <label class="lbl" for="exName">Deneme adı</label>
+          <input id="exName" class="inp" type="text" placeholder="Örn: 3. Deneme" maxlength="40" value="${esc(ex?.name || '')}">
+        </div>
+        <div>
+          <label class="lbl" for="exDate">Tarih</label>
+          <input id="exDate" class="inp" type="date" value="${ex?.date || todayKey()}">
+        </div>
+      </div>
+      <div class="xs-head"><span>Ders</span><span>Doğru</span><span>Yanlış</span></div>
+      ${SUBJECTS.map(s => subjectBlock(s, ex)).join('')}`;
+
+  return `
+  <div class="drawer-scrim" data-closex></div>
+  <aside class="drawer xdrawer ${justOpened ? 'opening' : ''}" role="dialog" aria-modal="true" aria-label="${title}">
+    <div class="drawer-head">
+      <span class="xdrawer-ico">${ex ? '✏️' : '🏆'}</span>
+      <div class="drawer-title"><div class="book-name">${title}</div></div>
+      <button type="button" class="drawer-x" data-closex aria-label="kapat">✕</button>
+    </div>
+    <div class="drawer-body">${body}</div>
+    ${admin.isUnlocked() ? `
+      <div class="xdrawer-foot">
+        <div class="xprev"><span><b id="exNet">0</b>net</span><span><b id="exScore">100</b>tahmini puan</span></div>
+        <button type="button" id="exSave" class="btn-primary">${ex ? 'Değişiklikleri kaydet' : 'Denemeyi kaydet 🏆'}</button>
+      </div>` : ''}
+  </aside>`;
+}
+
+/* ---------------- ekran ---------------- */
 export function render() {
   const state = store.get();
   const exams = state.exams;
 
   const trend = exams.map(e => ({ label: fmtShort(dateOf(e.date)), value: estimateScore(e.subjects) }));
   const best = exams.length ? Math.max(...trend.map(t => t.value)) : 0;
+  const bestNet = exams.length ? Math.max(...exams.map(examNet)) : 0;
   const last = exams.length ? trend[trend.length - 1].value : 0;
   const prev = exams.length > 1 ? trend[trend.length - 2].value : null;
   const diff = prev !== null ? last - prev : null;
-
-  return `
-  <div class="card">
-    <div class="card-title">➕ Yeni deneme ekle</div>
-    <div class="exam-form">
-      <div class="frow">
-        <div>
-          <label class="lbl" for="exName">Deneme adı</label>
-          <input id="exName" class="inp" type="text" placeholder="Örn: 3. Deneme" maxlength="40">
-        </div>
-        <div>
-          <label class="lbl" for="exDate">Tarih</label>
-          <input id="exDate" class="inp" type="date" value="${todayKey()}">
-        </div>
+  const weak = weakTopics(exams).slice(0, 8);
+  const maxWeak = weak.length ? weak[0].y : 1;
+  const unlocked = admin.isUnlocked();
+  const html = `
+  <div class="xpage">
+    <div class="xhead">
+      <div class="xstats">
+        <div class="xstat"><b>${exams.length}</b>deneme</div>
+        <div class="xstat"><b>${best || '–'}</b>en yüksek puan</div>
+        <div class="xstat"><b>${exams.length ? fmtNet(bestNet) : '–'}</b>en iyi net</div>
+        <div class="xstat"><b class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff === null ? '–' : (diff >= 0 ? '+' : '') + diff}</b>son değişim</div>
       </div>
-      <div>
-        <div class="dy-head"><span>Ders</span><span>Doğru</span><span>Yanlış</span></div>
-        ${SUBJECTS.map(s => `
-          <div class="dy-grid">
-            <div class="dy-name">${s.emoji} ${esc(s.name)} <span style="color:#957085;font-size:11px">/${s.q}</span></div>
-            <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0" data-ex="${s.key}" data-f="d">
-            <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0" data-ex="${s.key}" data-f="y">
-          </div>`).join('')}
+      <div class="xhead-acts">
+        ${unlocked ? '<button type="button" class="btn-ghost xlock" data-examlock>🔒</button>' : ''}
+        <button type="button" class="btn-primary" data-addexam>+ Deneme ekle</button>
       </div>
-      <div id="exPreview" class="mini-stats" style="justify-content:space-around">
-        <div class="mini-stat"><b id="exNet">0</b>net</div>
-        <div class="mini-stat"><b id="exScore">100</b>tahmini puan</div>
-      </div>
-      <button type="button" id="exSave" class="btn-primary wide">Denemeyi kaydet 🏆</button>
     </div>
+
+    ${exams.length ? `
+      <div class="xgrid">
+        <div class="card">
+          <div class="card-title">📈 Puan gelişimin</div>
+          ${line(trend, { min: 100, max: 500, height: 165 })}
+        </div>
+        <div class="card">
+          <div class="card-title">🎯 En çok yanlış yaptığın konular</div>
+          ${weak.length ? `<ul class="wtop">${weak.map(t => `
+            <li>
+              <span class="wtop-dot" style="background:${SUBJ_MAP[t.subject]?.color || '#ddd'}"></span>
+              <span class="wtop-name">${esc(t.name)}</span>
+              <span class="wtop-bar"><i style="width:${(t.y / maxWeak) * 100}%;background:${SUBJ_MAP[t.subject]?.color || 'var(--pink)'}"></i></span>
+              <b>${t.y}</b>
+            </li>`).join('')}</ul>`
+          : '<p class="hint" style="text-align:left;margin:0">Denemeye konu yanlışlarını da girersen hangi konuya çalışman gerektiği burada görünür.</p>'}
+        </div>
+      </div>
+      <div class="sec-title">Deneme geçmişi</div>
+      <div class="xlist">${[...exams].reverse().map(examCard).join('')}</div>
+    ` : `<div class="card"><div class="empty"><div>🏆</div>
+        Henüz deneme yok.<br>İlk denemeyi ekle, gelişimini grafikte görelim! 📈</div></div>`}
   </div>
-
-  ${exams.length ? `
-    <div class="stat-grid">
-      <div class="stat-box"><div class="stat-val">${exams.length}</div><div class="stat-lbl">deneme</div></div>
-      <div class="stat-box"><div class="stat-val">${best}</div><div class="stat-lbl">en yüksek puan</div></div>
-      <div class="stat-box"><div class="stat-val">${diff === null ? '–' : (diff >= 0 ? '+' : '') + diff}</div><div class="stat-lbl">son değişim</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📈 Puan gelişimin</div>
-      ${line(trend, { min: 100, max: 500, height: 165 })}
-    </div>
-    <div class="sec-title">Deneme geçmişi</div>
-    <div class="grid-cards">${[...exams].reverse().map(examCard).join('')}</div>
-  ` : `<div class="card"><div class="empty"><div>🏆</div>
-      Henüz deneme girmedin.<br>İlk denemeni ekle, gelişimini grafikte görelim! 📈</div></div>`}
-  `;
+  <div id="xDrawer">${drawerHtml()}</div>`;
+  justOpened = false;
+  return html;
 }
 
 export function bind(root, ctx) {
+  const $ = sel => root.querySelector(sel);
+  document.body.classList.toggle('drawer-open', !!drawer);
+
+  const open = next => { drawer = next; justOpened = true; ctx.rerender(); };
+  const close = () => { drawer = null; ctx.rerender(); };
+
+  admin.bindGate(root, ctx, () => ctx.rerender());
+  if (drawer && !admin.isUnlocked()) setTimeout(() => $('[data-admin-pin]')?.focus(), 200);
+
   const readForm = () => {
-    const subjects = {};
+    const subjects = {}, topics = {};
     for (const s of SUBJECTS) {
-      const d = clampInt(root.querySelector(`[data-ex="${s.key}"][data-f="d"]`)?.value || 0, 0, s.q);
-      const y = clampInt(root.querySelector(`[data-ex="${s.key}"][data-f="y"]`)?.value || 0, 0, s.q);
+      const d = clampInt($(`[data-ex="${s.key}"][data-f="d"]`)?.value || 0, 0, s.q);
+      const y = clampInt($(`[data-ex="${s.key}"][data-f="y"]`)?.value || 0, 0, s.q);
       subjects[s.key] = { d, y };
+      (formTopics[s.key] || []).forEach((name, i) => {
+        const v = clampInt($(`[data-tp="${s.key}:${i}"]`)?.value || 0, 0, s.q);
+        if (v > 0) (topics[s.key] ||= {})[name] = v;
+      });
     }
-    return subjects;
+    return { subjects, topics };
   };
 
   const preview = () => {
-    const subjects = readForm();
+    if (!$('#exNet')) return;
+    const { subjects, topics } = readForm();
     const net = SUBJECTS.reduce((a, s) => a + netOf(subjects[s.key].d, subjects[s.key].y), 0);
-    const nEl = root.querySelector('#exNet');
-    const sEl = root.querySelector('#exScore');
-    if (nEl) nEl.textContent = fmtNet(net);
-    if (sEl) sEl.textContent = estimateScore(subjects);
+    $('#exNet').textContent = fmtNet(net);
+    $('#exScore').textContent = estimateScore(subjects);
+    for (const s of SUBJECTS) {
+      const el = $(`[data-tpsum="${s.key}"]`);
+      if (!el) continue;
+      const sum = Object.values(topics[s.key] || {}).reduce((a, v) => a + v, 0);
+      const y = subjects[s.key].y;
+      el.textContent = sum ? `${sum} yanlış işaretli${sum > y ? ` (yanlış sayısı ${y})` : ''}` : '';
+      el.classList.toggle('over', sum > y);
+    }
   };
+  preview();
 
   root.addEventListener('input', e => {
-    if (e.target.closest('[data-ex]')) preview();
+    if (e.target.closest('[data-ex], [data-tp]')) preview();
   });
 
   root.addEventListener('click', e => {
+    if (e.target.closest('[data-addexam]')) { open({ mode: 'add' }); return; }
+    if (e.target.closest('[data-closex]')) { close(); return; }
+    if (e.target.closest('[data-examlock]')) { admin.lock(); drawer = null; ctx.rerender(); ctx.toast('Kilitlendi 🔒'); return; }
+
+    const ed = e.target.closest('[data-edit]');
+    if (ed) { open({ mode: 'edit', id: ed.dataset.edit }); return; }
+
     const del = e.target.closest('[data-del]');
     if (del) {
       if (confirm('Bu denemeyi silmek istediğine emin misin?')) {
@@ -129,22 +278,31 @@ export function bind(root, ctx) {
     }
 
     if (e.target.closest('#exSave')) {
-      const name = (root.querySelector('#exName').value || '').trim();
-      const date = root.querySelector('#exDate').value || todayKey();
-      const subjects = readForm();
+      const name = ($('#exName').value || '').trim();
+      const date = $('#exDate').value || todayKey();
+      const { subjects, topics } = readForm();
       const any = SUBJECTS.some(s => subjects[s.key].d || subjects[s.key].y);
       if (!any) { ctx.toast('Önce doğru/yanlış sayılarını gir 🙂'); return; }
 
-      store.addExam({
-        id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        name: name || `Deneme ${store.get().exams.length + 1}`,
-        date,
-        subjects,
-      });
-      confetti(1600);
-      ctx.toast('Deneme kaydedildi! 🏆');
+      if (drawer.mode === 'edit') {
+        const old = store.get().exams.find(x => x.id === drawer.id);
+        store.updateExam(drawer.id, { name: name || old?.name || 'Deneme', date, subjects, topics });
+        ctx.toast('Deneme güncellendi ✅');
+      } else {
+        store.addExam({
+          id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          name: name || `Deneme ${store.get().exams.length + 1}`,
+          date, subjects, topics,
+        });
+        confetti(1600);
+        ctx.toast('Deneme kaydedildi! 🏆');
+      }
+      drawer = null;
       ctx.rerender();
+      ctx.refreshHeader();
       ctx.checkBadges();
     }
   });
+
+  root.addEventListener('keydown', e => { if (e.key === 'Escape' && drawer) close(); });
 }

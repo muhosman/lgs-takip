@@ -1,38 +1,21 @@
-// "Hediye yönetimi" ekranı — Ayarlar'dan açılır, hediye şifresiyle korunur.
+// "Hediye yönetimi" ekranı — Ayarlar'dan açılır, yönetici şifresiyle korunur.
 // Hediyeler koşul türüne göre gruplanır; ekleme ve düzenleme aynı pencerede.
 import { GIFT_KINDS, GIFT_KIND_MAP } from '../data.js';
 import * as store from '../store.js';
 import { summarize, giftProgress } from '../gamify.js';
 import { esc, clampInt, fmtNet } from '../utils.js';
+import * as admin from '../admin.js';
 
-// Bu oturumda şifreyle açıldı mı? Sayfadan çıkınca kapanır (app.js çağırır).
-let unlocked = false;
 let sheet = null;           // null | { mode:'add', kind } | { mode:'edit', id } | { mode:'pin' }
-export const lock = () => { unlocked = false; sheet = null; };
-
-const pinOk = v => /^\d{4,6}$/.test(v);
+export const reset = () => { sheet = null; };
 
 const kindOptions = sel => GIFT_KINDS.map(k =>
   `<option value="${k.key}" ${k.key === sel ? 'selected' : ''}>${k.emoji} ${esc(k.label)}</option>`).join('');
 
 /* ---------------- kilit ---------------- */
-function gate(s) {
-  const first = !s.giftPin;
-  return `
+const gate = () => `
   <button type="button" class="back-link" data-back>← Ayarlar</button>
-  <div class="card gift-gate">
-    <div class="gift-gate-ico">🎁</div>
-    <div class="card-title" style="justify-content:center">${first ? 'Hediye şifresi belirle' : 'Hediye yönetimi'}</div>
-    <p class="hint" style="margin:0 0 12px">
-      ${first
-        ? 'Yalnız senin bileceğin 4-6 rakamlı bir şifre seç, böylece sürpriz bozulmaz 🤫'
-        : 'Devam etmek için hediye şifresini gir.'}
-    </p>
-    <input id="gaPin" class="inp" type="password" inputmode="numeric" maxlength="6" placeholder="${first ? '4-6 rakam' : 'Hediye şifresi'}" autocomplete="off">
-    <div style="height:10px"></div>
-    <button type="button" id="gaPinGo" class="btn-primary wide">${first ? 'Şifreyi belirle' : 'Aç 🔓'}</button>
-  </div>`;
-}
+  ${admin.gateHtml({ title: 'Hediye yönetimi', hint: 'Devam etmek için yönetici şifresini gir.' })}`;
 
 /* ---------------- liste ---------------- */
 function row(g, st, opened) {
@@ -76,11 +59,11 @@ function sheetHtml(s) {
   if (sheet.mode === 'pin') {
     return `
     <div class="modal-scrim" data-gclose></div>
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Hediye şifresi">
-      <div class="modal-head"><span class="modal-title">🔒 Hediye şifresini değiştir</span>
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Yönetici şifresi">
+      <div class="modal-head"><span class="modal-title">🔒 Yönetici şifresini değiştir</span>
         <button type="button" class="drawer-x" data-gclose aria-label="kapat">✕</button></div>
       <div class="modal-body">
-        <input id="gaNewPin" class="inp" type="password" inputmode="numeric" maxlength="6" placeholder="Yeni şifre (4-6 rakam)" autocomplete="off">
+        <input id="gaNewPin" class="inp" type="password" inputmode="numeric" maxlength="12" placeholder="Yeni şifre (4-12 rakam)" autocomplete="off">
       </div>
       <div class="modal-foot"><div class="btn-row">
         <button type="button" class="btn-primary" data-gpinsave>Kaydet</button>
@@ -120,7 +103,7 @@ function sheetHtml(s) {
 
 export function render() {
   const s = store.get();
-  if (!unlocked) return gate(s);
+  if (!admin.isUnlocked()) return gate();
 
   const st = summarize(s);
   const opened = store.openedMap(s);
@@ -151,22 +134,11 @@ export function bind(root, ctx) {
   document.body.classList.toggle('modal-open', !!sheet);
 
   const openSheet = next => { sheet = next; ctx.rerender(); };
-  const goBack = () => { lock(); ctx.go('settings'); };
+  const goBack = () => { admin.lock(); sheet = null; ctx.go('settings'); };
 
-  // Kilit ekranı
-  const go = () => {
-    const v = ($('#gaPin')?.value || '').trim();
-    const s = store.get();
-    if (!s.giftPin) {
-      if (!pinOk(v)) { ctx.toast('Şifre 4-6 rakam olmalı'); return; }
-      store.setMeta({ giftPin: v });
-    } else if (v !== s.giftPin) { ctx.toast('Şifre yanlış'); return; }
-    unlocked = true;
-    ctx.rerender();
-  };
-  $('#gaPinGo')?.addEventListener('click', go);
-  $('#gaPin')?.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-  if ($('#gaPin')) setTimeout(() => $('#gaPin')?.focus(), 150);
+  // Kilit ekranı (hediyeler ve deneme girişi ortak)
+  admin.bindGate(root, ctx, () => ctx.rerender());
+  setTimeout(() => root.querySelector('[data-admin-pin]')?.focus(), 150);
 
   // Pencerede koşul seçilince örnek cümle
   const condPreview = () => {
@@ -187,7 +159,7 @@ export function bind(root, ctx) {
 
   root.addEventListener('click', e => {
     if (e.target.closest('[data-back]')) { goBack(); return; }
-    if (e.target.closest('[data-glock]')) { goBack(); ctx.toast('Hediye yönetimi kilitlendi 🔒'); return; }
+    if (e.target.closest('[data-glock]')) { goBack(); ctx.toast('Kilitlendi 🔒'); return; }
     if (e.target.closest('[data-gclose]')) { openSheet(null); return; }
     if (e.target.closest('[data-gpin]')) { openSheet({ mode: 'pin' }); return; }
 
@@ -198,10 +170,10 @@ export function bind(root, ctx) {
 
     if (e.target.closest('[data-gpinsave]')) {
       const v = ($('#gaNewPin').value || '').trim();
-      if (!pinOk(v)) { ctx.toast('Şifre 4-6 rakam olmalı'); return; }
+      if (!admin.pinOk(v)) { ctx.toast('Şifre 4-12 rakam olmalı'); return; }
       store.setMeta({ giftPin: v });
       openSheet(null);
-      ctx.toast('Hediye şifresi güncellendi 🔒');
+      ctx.toast('Yönetici şifresi güncellendi 🔒');
       return;
     }
 

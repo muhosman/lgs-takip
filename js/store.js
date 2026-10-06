@@ -14,7 +14,7 @@ const defaults = () => ({
   goalHistory: [],    // [{ from:'YYYY-MM-DD', goal, _t }] — hedefin o tarihten itibaren geçerli hâli
   examDate: '2027-06-06',
   days: {},           // 'YYYY-MM-DD' -> { _t: zaman damgası, turkce:{d,y,b,s,ct}, ... }
-  exams: [],          // { id, name, date, subjects:{ key:{d,y} } }
+  exams: [],          // { id, name, date, subjects:{ key:{d,y} }, topics:{ key:{ 'konu adı': yanlış } }, _t }
   deletedExams: [],   // silinen denemeler senkronda geri gelmesin
   books: [],          // { id, subject, name, units:[{id,name,done,doneAt}], _t }
   deletedBooks: [],
@@ -149,6 +149,16 @@ function sweepTombstones() {
 
 export function addExam(exam) {
   state.exams.push({ ...exam, _t: Date.now() });
+  state.exams.sort((a, b) => a.date.localeCompare(b.date));
+  state.updatedAt = Date.now();
+  save();
+}
+
+/** Kayıtlı denemeyi günceller (yeni zaman damgası: eşitlemede bu sürüm kazanır) */
+export function updateExam(id, patch) {
+  const ex = state.exams.find(e => e.id === id);
+  if (!ex) return;
+  Object.assign(ex, patch, { id, _t: Date.now() });
   state.exams.sort((a, b) => a.date.localeCompare(b.date));
   state.updatedAt = Date.now();
   save();
@@ -452,7 +462,11 @@ export function mergeDocs(a, b) {
 
   const deleted = new Set([...(a.deletedExams || []), ...(b.deletedExams || [])]);
   const byId = new Map();
-  for (const e of [...(a.exams || []), ...(b.exams || [])]) byId.set(e.id, e);
+  for (const e of [...(a.exams || []), ...(b.exams || [])]) {
+    // güncellenen deneme: daha yeni zaman damgası kazanır
+    const cur = byId.get(e.id);
+    if (!cur || (e._t || 0) >= (cur._t || 0)) byId.set(e.id, e);
+  }
   out.exams = [...byId.values()]
     .filter(e => !deleted.has(e.id))
     .sort((x, y) => x.date.localeCompare(y.date));

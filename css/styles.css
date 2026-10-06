@@ -839,8 +839,9 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 
 /* hediye yönetimi sayfası */
 .back-link{background:none;color:var(--pink-deep);font-size:13.5px;padding:4px 2px 12px}
-.gift-gate{max-width:380px;margin:20px auto 13px;text-align:center}
-.gift-gate-ico{font-size:44px;line-height:1;margin-bottom:6px}
+.admin-gate{max-width:380px;margin:4px auto 13px;text-align:center}
+.admin-gate-ico{font-size:40px;line-height:1;margin-bottom:6px}
+.exam-lock{padding:6px 11px;font-size:12px}
 .ga-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .ga-head-title{font-family:'Baloo 2',sans-serif;font-size:18px;color:var(--pink-deep)}
 .ga-head-sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
@@ -1002,4 +1003,89 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
   .btiles{grid-template-columns:repeat(3,1fr);gap:7px}
   .bt{padding:10px 4px 8px}
   .bt-name{font-size:11px}
+}
+
+/* ============ DENEMELER (sade, ortalanmış) ============ */
+.xpage{max-width:1040px;margin:0 auto}
+.xhead{display:flex;align-items:center;gap:12px;margin-bottom:13px;flex-wrap:wrap}
+.xstats{flex:1;min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;
+  background:var(--line);border-radius:18px;overflow:hidden;border:1.5px solid var(--line);box-shadow:var(--shadow-sm)}
+.xstat{background:var(--card);padding:10px 8px;text-align:center;font-size:11px;color:var(--ink-soft)}
+.xstat b{display:block;font-family:'Baloo 2',sans-serif;font-size:20px;line-height:1.15;color:var(--ink)}
+.xstat b.up{color:var(--ok)}
+.xstat b.down{color:#D64257}
+.xhead-acts{display:flex;gap:8px;flex-shrink:0}
+.xlock{padding:11px 13px}
+.xgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:13px}
+.xgrid > .card{margin:0}
+
+/* konu yanlışları özeti */
+.wtop{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.wtop li{display:grid;grid-template-columns:auto minmax(0,1fr) 70px auto;align-items:center;gap:8px;font-size:12.5px}
+.wtop-dot{width:9px;height:9px;border-radius:50%}
+.wtop-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wtop-bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.wtop-bar i{display:block;height:100%;border-radius:99px}
+.wtop b{font-family:'Baloo 2',sans-serif;color:#D64257;min-width:18px;text-align:right}
+
+/* deneme kartları */
+.xlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:11px}
+.xcard{background:var(--card);border-radius:18px;padding:13px 14px;border:1.5px solid var(--line);box-shadow:var(--shadow-sm)}
+.xcard-top{display:flex;align-items:center;gap:10px}
+.xcard-title{flex:1;min-width:0}
+.xcard-name{font-family:'Baloo 2',sans-serif;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xcard-date{font-size:11px;color:var(--ink-soft)}
+.xcard-nums{display:flex;gap:12px;font-size:10px;color:var(--ink-soft);text-align:center}
+.xcard-nums b{display:block;font-family:'Baloo 2',sans-serif;font-size:17px;line-height:1.1;color:var(--ink)}
+.xcard-score b{color:var(--pink-deep)}
+.xcard-acts{display:flex;gap:6px}
+.xbars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 10px;margin-top:11px}
+.xbar{display:flex;flex-direction:column;gap:3px;min-width:0}
+.xbar-track{height:6px;border-radius:99px;background:#FFF0F5;overflow:hidden}
+.xbar-track i{display:block;height:100%;border-radius:99px}
+.xbar-lbl{font-size:10.5px;font-family:'Baloo 2',sans-serif;color:var(--ink-soft);white-space:nowrap}
+.xcard-topics{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);font-size:11.5px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.xcard-topics span{background:#FFF1F3;border-radius:99px;padding:2px 8px}
+.xcard-topics b{color:#D64257}
+
+/* ekleme/düzenleme drawer'ı */
+.xdrawer{width:min(460px,96vw)}
+.xdrawer .drawer-head{background:linear-gradient(120deg,#FFE7F0,transparent)}
+.xdrawer-ico{font-size:24px}
+.xdrawer .admin-gate{margin-top:30px;box-shadow:none}
+.xs-head{display:grid;grid-template-columns:1fr 58px 58px;gap:7px;font-size:11px;color:var(--ink-soft);margin:14px 0 6px;padding:0 10px}
+.xs-head span:not(:first-child){text-align:center}
+.xs{border-radius:15px;background:color-mix(in srgb,var(--c) 14%,#fff);border:1.5px solid color-mix(in srgb,var(--c) 45%,#fff);padding:8px 10px;margin-bottom:8px}
+.xs-row{display:grid;grid-template-columns:1fr 58px 58px;gap:7px;align-items:center}
+.xs-name{font-family:'Baloo 2',sans-serif;font-size:13px;color:var(--i);min-width:0}
+.xs-name small{font-family:'Quicksand',sans-serif;font-size:10.5px;color:var(--ink-soft)}
+.xs input,.xt input{height:36px;border-radius:11px;border:1.5px solid var(--line);background:#fff;text-align:center;
+  font-size:15px;font-family:'Baloo 2',sans-serif;outline:none;width:100%;-moz-appearance:textfield}
+.xs input::-webkit-outer-spin-button,.xs input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.xs input:focus{border-color:var(--pink)}
+.xs-topics{margin-top:6px}
+.xs-topics summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--ink-soft);padding:3px 0;list-style:none}
+.xs-topics summary::-webkit-details-marker{display:none}
+.xs-topics summary::after{content:' ▾'}
+.xs-topics[open] summary::after{content:' ▴'}
+.xs-topics summary span{font-weight:600;color:#D64257;margin-left:4px}
+.xs-topics summary span.over{color:#B7791F}
+.xt-list{list-style:none;margin:6px 0 2px;padding:0;display:flex;flex-direction:column;gap:5px}
+.xt{display:grid;grid-template-columns:1fr 58px;gap:7px;align-items:center}
+.xt-name{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xt input{height:32px;font-size:14px}
+.xt-empty{font-size:11.5px;color:var(--ink-soft);margin:4px 0}
+.xdrawer-foot{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:11px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
+.xprev{flex:1;display:flex;gap:14px;font-size:10.5px;color:var(--ink-soft)}
+.xprev b{display:block;font-family:'Baloo 2',sans-serif;font-size:19px;line-height:1.1;color:var(--pink-deep)}
+
+@media (max-width:760px){
+  .xgrid{grid-template-columns:minmax(0,1fr)}
+  .xlist{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:520px){
+  .xhead{flex-direction:column;align-items:stretch}
+  .xstats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .xhead-acts .btn-primary{flex:1}
+  .xcard-nums{gap:8px}
 }

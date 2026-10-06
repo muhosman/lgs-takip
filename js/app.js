@@ -16,6 +16,7 @@ import * as exams from './views/exams.js';
 import * as settings from './views/settings.js';
 import * as gifts from './views/gifts.js';
 import * as giftAdmin from './views/giftAdmin.js';
+import * as admin from './admin.js';
 
 const VIEWS = { today, week, books, english, badges, stats, exams, settings, gifts, giftAdmin };
 const SESSION_KEY = 'lgs-unlocked';
@@ -227,7 +228,8 @@ const ctx = {
 };
 
 function renderTab(tab) {
-  if (tab !== 'giftAdmin') giftAdmin.lock();      // hediye yönetimi açık kalmasın
+  // Yönetici kilidi başka sekmeye geçince kapanır (aynı sekmenin yeniden çizimi değil)
+  if (tab !== currentTab) { admin.lock(); giftAdmin.reset(); exams.reset(); }
   currentTab = tab;
   const view = VIEWS[tab];
 

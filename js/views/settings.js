@@ -8,7 +8,7 @@ function giftCard(s) {
     <div class="card-title">🎁 Hediyeler</div>
     <p class="hint" style="text-align:left;margin:0 0 11px">
       ${(s.gifts || []).length} hediye. Belli bir nete, puana ya da seviyeye ulaşınca açılan sürprizler.
-      Yönetmek için hediye şifresi gerekir 🤫
+      Yönetmek için yönetici şifresi gerekir 🤫 (deneme girişi de bu şifreyle açılır)
     </p>
     <button type="button" id="giftAdminBtn" class="btn-ghost">🎁 Hediyeleri yönet →</button>
   </div>`;

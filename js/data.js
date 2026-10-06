@@ -43,6 +43,8 @@ export const GIFT_KINDS = [
   { key: 'level', emoji: '⭐', label: 'Seviye',             cond: t => `Sv. ${t} ol`,                left: n => `${n} seviye kaldı` },
   { key: 'questions', emoji: '✏️', label: 'Toplam soru',        cond: t => `Toplam ${t} soru çöz`,       left: n => `${n} soru kaldı` },
   { key: 'streak', emoji: '🔥', label: 'Gün serisi',         cond: t => `${t} gün üst üste çalış`,    left: n => `${n} gün daha` },
+  { key: 'badges', emoji: '🏅', label: 'Rozet sayısı',       cond: t => `Toplam ${t} rozet kazan`,    left: n => `${n} rozet kaldı` },
+  { key: 'diamond', emoji: '💎', label: 'Elmas rozet',       cond: t => t === 1 ? 'İlk elmas rozetini kazan' : `${t} elmas rozet kazan`, left: n => `${n} elmas rozet kaldı` },
 ];
 export const GIFT_KIND_MAP = Object.fromEntries(GIFT_KINDS.map(k => [k.key, k]));
 
@@ -268,8 +270,12 @@ const rarityOf = (() => {
   return b => {
     if (!b.track) return 'silver';
     const list = [...tracks.get(b.track)].sort((x, y) => x - y);
-    if (list.length < 2) return 'silver';
-    const r = list.indexOf(b.target) / (list.length - 1);
+    const i = list.indexOf(b.target);
+    // kısa diziler elmasa çıkmaz: elmas, uzun bir merdivenin en tepesi olmalı
+    if (list.length === 1) return 'silver';
+    if (list.length === 2) return ['silver', 'gold'][i];
+    if (list.length === 3) return ['bronze', 'silver', 'gold'][i];
+    const r = i / (list.length - 1);
     return r >= 0.99 ? 'diamond' : r >= 0.6 ? 'gold' : r >= 0.3 ? 'silver' : 'bronze';
   };
 })();

@@ -237,6 +237,9 @@ const GIFT_VALUE = {
   level:     st => levelInfo(st.xp).level,
   questions: st => st.totalQ,
   streak:    st => st.bestStreak,
+  badges:    st => earnedBadges(st).length,
+  // elmas: her rozet dizisinin en zoru (data.js'te rarity)
+  diamond:   st => { const won = new Set(earnedBadges(st)); return BADGES.filter(b => b.rarity === 'diamond' && won.has(b.id)).length; },
 };
 
 /** Hediyenin ilerlemesi: { cur, target, unlocked }. Net kesirli, küçük pay bırakılır. */

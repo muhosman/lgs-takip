@@ -16,6 +16,7 @@ const defaults = () => ({
   days: {},           // 'YYYY-MM-DD' -> { _t: zaman damgası, turkce:{d,y,b,s,ct}, ... }
   exams: [],          // { id, name, date, subjects:{ key:{d,y} }, topics:{ key:{ 'konu adı': yanlış } }, _t }
   deletedExams: [],   // silinen denemeler senkronda geri gelmesin
+  examTopics: {},     // ders -> ['konu adı', ...] deneme formundaki konu listesi (Denemeler > Konular)
   books: [],          // { id, subject, name, units:[{id,name,done,doneAt}], _t }
   deletedBooks: [],
   words: [],          // { id, en, tr, type, ticks, wrong, _t } — İngilizce kelimeler
@@ -150,6 +151,16 @@ function sweepTombstones() {
 export function addExam(exam) {
   state.exams.push({ ...exam, _t: Date.now() });
   state.exams.sort((a, b) => a.date.localeCompare(b.date));
+  state.updatedAt = Date.now();
+  save();
+}
+
+/** Bir dersin deneme konu listesini yazar (ayar gibi: updatedAt ile eşitlenir) */
+export function setExamTopics(subject, list) {
+  const seen = new Set();
+  const clean = list.map(n => String(n).trim().replace(/\s+/g, ' ').slice(0, 80))
+    .filter(n => n && !seen.has(n.toLocaleLowerCase('tr')) && seen.add(n.toLocaleLowerCase('tr')));
+  state.examTopics = { ...(state.examTopics || {}), [subject]: clean };
   state.updatedAt = Date.now();
   save();
 }

@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import * as sync from './sync.js';
 import { BADGES } from './data.js';
-import { summarize, levelInfo, earnedBadges } from './gamify.js';
+import { summarize, levelInfo, earnedBadges, unlockedGifts } from './gamify.js';
 import { fmtLong, fmtDay, dateOf, daysBetween } from './utils.js';
 import { confetti } from './confetti.js';
 
@@ -84,6 +84,11 @@ function refreshHeader() {
   $('#levelName').textContent = `Sv. ${lvl.level} · ${lvl.title}`;
   $('#levelXp').textContent = `${lvl.into} / ${lvl.need} XP`;
   $('#levelFill').style.width = lvl.pct + '%';
+
+  // açılmayı bekleyen hediye varsa Rozet sekmesinde nokta
+  const opened = state.openedGifts || {};
+  const waiting = unlockedGifts(state.gifts, st).some(id => !opened[id]);
+  document.querySelector('#tabbar [data-tab="badges"]')?.classList.toggle('has-gift', waiting);
 }
 
 /* ---------------- rozetler ---------------- */
@@ -93,6 +98,18 @@ function checkBadges() {
   const have = earnedBadges(st);
   const seen = new Set(state.seenBadges);
   const fresh = have.filter(id => !seen.has(id));
+
+  // Yeni açılan hediye: adı söylenmez, kutuyu Rozetler'de kendisi açacak
+  const gifts = unlockedGifts(state.gifts, st);
+  const freshGifts = gifts.filter(id => !(state.seenGifts || {})[id]);
+  if (freshGifts.length) {
+    store.markGiftsSeen(gifts);
+    refreshHeader();
+    confetti(2400);
+    setTimeout(() => toast('🎁 Yeni bir hediyen var! Rozetler\'de seni bekliyor'), 300);
+    if (fresh.length) store.markBadgesSeen(have);
+    return;
+  }
   if (!fresh.length) return;
 
   store.markBadgesSeen(have);
@@ -201,6 +218,7 @@ const ctx = {
 };
 
 function renderTab(tab) {
+  if (tab !== 'settings') settings.lockGifts();   // hediye düzenleyicisi açık kalmasın
   currentTab = tab;
   const view = VIEWS[tab];
 

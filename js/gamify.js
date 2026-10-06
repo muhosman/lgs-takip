@@ -188,6 +188,27 @@ export function levelInfo(xp) {
   };
 }
 
+/* ---------------- hediyeler ---------------- */
+
+const GIFT_VALUE = {
+  net:       st => st.bestExamNet,
+  score:     st => st.bestExamScore,
+  level:     st => levelInfo(st.xp).level,
+  questions: st => st.totalQ,
+  streak:    st => st.bestStreak,
+};
+
+/** Hediyenin ilerlemesi: { cur, target, unlocked }. Net kesirli, küçük pay bırakılır. */
+export function giftProgress(gift, stats) {
+  const fn = GIFT_VALUE[gift.kind];
+  const cur = fn ? fn(stats) || 0 : 0;
+  const target = gift.target || 0;
+  return { cur, target, unlocked: target > 0 && cur + 1e-9 >= target };
+}
+
+export const unlockedGifts = (gifts, stats) =>
+  (gifts || []).filter(g => giftProgress(g, stats).unlocked).map(g => g.id);
+
 export function earnedBadges(stats) {
   return BADGES.filter(b => {
     try { return b.test(stats); } catch { return false; }

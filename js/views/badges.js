@@ -1,8 +1,74 @@
 // "Rozetler" ekranı — kazanılan ve kilitli rozetler, kategori kategori
-import { BADGES, BADGE_GROUPS } from '../data.js';
+import { BADGES, BADGE_GROUPS, GIFT_KIND_MAP } from '../data.js';
 import * as store from '../store.js';
-import { summarize, earnedBadges } from '../gamify.js';
-import { esc } from '../utils.js';
+import { summarize, earnedBadges, giftProgress } from '../gamify.js';
+import { esc, fmtNet } from '../utils.js';
+import { confetti } from '../confetti.js';
+
+const condText = g => (GIFT_KIND_MAP[g.kind]?.cond || (t => `${t}`))(g.target);
+const fmtCur = (g, cur) => g.kind === 'net' ? fmtNet(Math.min(cur, g.target)) : Math.min(Math.floor(cur), g.target);
+
+/**
+ * Hediye satırı. Üç hâl:
+ *  kilitli  → soluk kutu, yalnız koşul ve ilerleme (ne olduğu gizli)
+ *  hazır    → sallanan kutu, dokununca açılır
+ *  açılmış  → hediyenin adı ve teslim durumu
+ */
+function giftRow(g, st, opened) {
+  const p = giftProgress(g, st);
+  if (!p.unlocked) {
+    const pct = p.target > 0 ? Math.min(100, (p.cur / p.target) * 100) : 0;
+    return `
+    <div class="gift locked">
+      <div class="gift-box">🎁</div>
+      <div class="gift-body">
+        <div class="gift-cond">${esc(condText(g))}</div>
+        <div class="badge-prog gift-prog">
+          <span class="badge-prog-bar"><i style="width:${pct}%"></i></span>
+          <span class="badge-prog-txt">${fmtCur(g, p.cur)}/${g.target}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+  if (!opened[g.id]) {
+    return `
+    <button type="button" class="gift ready" data-opengift="${g.id}">
+      <div class="gift-box">🎁</div>
+      <div class="gift-body">
+        <div class="gift-name">Hediyen hazır!</div>
+        <div class="gift-cond">${esc(condText(g))} ✓ · açmak için dokun</div>
+      </div>
+    </button>`;
+  }
+  return `
+  <div class="gift opened">
+    <div class="gift-box">${g.delivered ? '💝' : '🎉'}</div>
+    <div class="gift-body">
+      <div class="gift-name">${esc(g.name)}</div>
+      <div class="gift-cond">${esc(condText(g))} ✓</div>
+    </div>
+    <span class="gift-state ${g.delivered ? 'done' : ''}">${g.delivered ? 'Teslim edildi ✓' : 'Teslim bekliyor'}</span>
+  </div>`;
+}
+
+function giftsSection(state, st) {
+  const gifts = state.gifts || [];
+  if (!gifts.length) return '';
+  const opened = state.openedGifts || {};
+  // hazırlar, sonra teslim bekleyen açılmışlar, sonra en yakın kilitliler, en sonda teslim edilenler
+  // (açılan kutu yerinde kalsın, aşağı kaymasın)
+  const rank = g => {
+    const p = giftProgress(g, st);
+    if (p.unlocked && !opened[g.id]) return -3;
+    if (p.unlocked) return g.delivered ? 1 : -2;
+    return -(p.target ? p.cur / p.target : 0);
+  };
+  const list = [...gifts].sort((a, b) => rank(a) - rank(b));
+  const got = gifts.filter(g => giftProgress(g, st).unlocked).length;
+  return `
+  <div class="sec-title">🎁 Hediyelerim <span class="sec-count">${got}/${gifts.length}</span></div>
+  <div class="card gifts">${list.map(g => giftRow(g, st, opened)).join('')}</div>`;
+}
 
 /** Kilitli rozette "340/500" ve ince bir çubuk; ilerlemesi olmayanlarda boş */
 function progressBar(badge, st) {
@@ -28,7 +94,8 @@ function badgeCard(b, earned, st) {
 }
 
 export function render() {
-  const st = summarize(store.get());
+  const state = store.get();
+  const st = summarize(state);
   const earned = new Set(earnedBadges(st));
   const pct = BADGES.length ? (earned.size / BADGES.length) * 100 : 0;
 
@@ -49,6 +116,7 @@ export function render() {
   }).join('');
 
   return `
+  ${giftsSection(state, st)}
   <div class="card badge-summary">
     <div class="badge-sum-head">
       <div class="badge-sum-num">${earned.size}<i>/${BADGES.length}</i></div>
@@ -70,4 +138,19 @@ export function render() {
   <p class="hint">Her rozet bir alışkanlığın işareti 🌸 Sene boyunca hepsini toplayabilirsin!</p>`;
 }
 
-export function bind() {}
+export function bind(root, ctx) {
+  root.addEventListener('click', e => {
+    const btn = e.target.closest('[data-opengift]');
+    if (!btn || btn.classList.contains('opening')) return;
+    const id = btn.dataset.opengift;
+    btn.classList.add('opening');           // kutu büyüyüp kaybolur
+    setTimeout(() => {
+      store.markGiftOpened(id);
+      confetti(2400);
+      ctx.refreshHeader();
+      ctx.rerender();
+      const g = store.findGift(id);
+      if (g) ctx.toast(`🎉 ${g.name}`);
+    }, 750);
+  });
+}

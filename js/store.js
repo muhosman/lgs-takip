@@ -21,6 +21,11 @@ const defaults = () => ({
   words: [],          // { id, en, tr, type, ticks, wrong, _t } — İngilizce kelimeler
   deletedWords: [],
   seenBadges: [],
+  gifts: [],          // { id, name, kind, target, delivered, _t } — abla/abinin koyduğu hediyeler
+  deletedGifts: [],
+  openedGifts: {},    // id -> zaman: kutusu açılıp adı görülen hediyeler
+  seenGifts: {},      // id -> zaman: "yeni hediye" bildirimi gösterilenler
+  giftPin: '',        // hediye düzenleme şifresi (giriş şifresinden ayrı, sürpriz bozulmasın)
   updatedAt: 0,       // ayarların son değişme zamanı (birleştirmede kullanılır)
   resetAt: 0,         // "verileri sıfırla" anı; bundan eskisi birleştirmede düşer
   createdAt: new Date().toISOString(),
@@ -307,6 +312,54 @@ export function scoreWord(id, correct) {
   return w;
 }
 
+/* ---------------- hediyeler ---------------- */
+
+export const findGift = id => state.gifts.find(g => g.id === id) || null;
+
+export function addGift({ name, kind, target }) {
+  const gift = {
+    id: uid('g'),
+    name: String(name || '').trim().slice(0, 80) || 'Sürpriz',
+    kind,
+    target: clampInt(target, 1, 999999),
+    delivered: false,
+    _t: Date.now(),
+  };
+  state.gifts.push(gift);
+  state.updatedAt = Date.now();
+  save();
+  return gift;
+}
+
+export function setGiftDelivered(id, delivered) {
+  const g = findGift(id);
+  if (!g) return;
+  g.delivered = !!delivered;
+  g._t = Date.now();
+  state.updatedAt = Date.now();
+  save();
+}
+
+export function removeGift(id) {
+  state.gifts = state.gifts.filter(g => g.id !== id);
+  if (!state.deletedGifts.includes(id)) state.deletedGifts.push(id);
+  state.updatedAt = Date.now();
+  save();
+}
+
+export function markGiftOpened(id) {
+  state.openedGifts = { ...state.openedGifts, [id]: Date.now() };
+  save();
+}
+
+export function markGiftsSeen(ids) {
+  const now = Date.now();
+  const seen = { ...state.seenGifts };
+  ids.forEach(i => { if (!seen[i]) seen[i] = now; });
+  state.seenGifts = seen;
+  save();
+}
+
 export function markBadgesSeen(ids) {
   const set = new Set(state.seenBadges);
   ids.forEach(i => set.add(i));
@@ -326,6 +379,8 @@ export function resetAll() {
   const keep = {
     pin: state.pin, name: state.name, examDate: state.examDate,
     dailyGoal: state.dailyGoal, goalHistory: state.goalHistory,
+    // hediyeler soru kaydı değil, abla/abinin ayarı: kalır; açılma durumu sıfırlanır
+    gifts: state.gifts, deletedGifts: state.deletedGifts, giftPin: state.giftPin,
   };
   const now = Date.now();
 
@@ -405,6 +460,23 @@ export function mergeDocs(a, b) {
   out.goalHistory = [...goals.values()].sort((x, y) => x.from.localeCompare(y.from));
   if (out.goalHistory.length) out.dailyGoal = goalOf(out, todayKey());
 
+  // Hediyeler kitaplarla aynı kalıp; açılan/görülen haritaları birleşir (ilk zaman kalır)
+  const deletedG = new Set([...(a.deletedGifts || []), ...(b.deletedGifts || [])]);
+  const gifts = new Map();
+  for (const g of [...(a.gifts || []), ...(b.gifts || [])]) {
+    const cur = gifts.get(g.id);
+    if (!cur || (g._t || 0) >= (cur._t || 0)) gifts.set(g.id, g);
+  }
+  out.gifts = [...gifts.values()].filter(g => !deletedG.has(g.id));
+  out.deletedGifts = [...deletedG];
+  const unionTimes = (x, y) => {
+    const m = { ...(y || {}) };
+    for (const [k, t] of Object.entries(x || {})) m[k] = m[k] ? Math.min(m[k], t) : t;
+    return m;
+  };
+  out.openedGifts = unionTimes(a.openedGifts, b.openedGifts);
+  out.seenGifts = unionTimes(a.seenGifts, b.seenGifts);
+
   out.seenBadges = [...new Set([...(a.seenBadges || []), ...(b.seenBadges || [])])];
   out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);
 
@@ -418,6 +490,10 @@ export function mergeDocs(a, b) {
     out.exams = out.exams.filter(e => (e._t || 0) >= resetAt);
     out.books = out.books.filter(bk => (bk._t || 0) >= resetAt);
     out.words = out.words.filter(w => (w._t || 0) >= resetAt);
+    // hediye listesi sıfırlamada korunur, yalnız açılma/görülme durumu düşer
+    const fresh = m => Object.fromEntries(Object.entries(m).filter(([, t]) => t >= resetAt));
+    out.openedGifts = fresh(out.openedGifts);
+    out.seenGifts = fresh(out.seenGifts);
   }
   return out;
 }

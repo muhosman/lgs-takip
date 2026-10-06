@@ -1,7 +1,86 @@
 // "Ayarlar" ekranı — kişiselleştirme, yedekleme, sıfırlama
 import * as store from '../store.js';
 import * as sync from '../sync.js';
-import { esc, clampInt, dateOf, fmtLong, daysBetween, todayKey } from '../utils.js';
+import { esc, clampInt, dateOf, fmtLong, daysBetween, todayKey, fmtNet } from '../utils.js';
+import { GIFT_KINDS, GIFT_KIND_MAP } from '../data.js';
+import { summarize, giftProgress } from '../gamify.js';
+
+// Hediye düzenleyicisi bu oturumda şifreyle açıldı mı? Sekmeden çıkınca kapanır.
+let giftsOpen = false;
+export const lockGifts = () => { giftsOpen = false; };
+
+function giftAdminRow(g, st, opened) {
+  const p = giftProgress(g, st);
+  const cur = g.kind === 'net' ? fmtNet(p.cur) : Math.floor(p.cur);
+  const status = !p.unlocked ? `🔒 ${cur}/${g.target}` : opened[g.id] ? '🎉 açıldı' : '🎁 hazır, açılmadı';
+  return `
+  <li class="gadm">
+    <div class="gadm-main">
+      <div class="gadm-name">${esc(g.name)}</div>
+      <div class="gadm-sub">${esc(GIFT_KIND_MAP[g.kind]?.cond(g.target) || '')} · ${status}</div>
+    </div>
+    <label class="gadm-done"><input type="checkbox" data-gdeliver="${g.id}" ${g.delivered ? 'checked' : ''}> teslim</label>
+    <button type="button" class="del-x" data-gdel="${g.id}" aria-label="sil">🗑</button>
+  </li>`;
+}
+
+function giftCard(s) {
+  if (!s.giftPin) {
+    return `
+    <div class="card">
+      <div class="card-title">🎁 Hediyeler</div>
+      <p class="hint" style="text-align:left;margin:0 0 11px">
+        Belli bir nete, puana ya da seviyeye ulaşınca açılan hediyeler koy. Önce yalnız
+        senin bileceğin bir hediye şifresi belirle, böylece sürpriz bozulmaz 🤫
+      </p>
+      <input id="giftPinNew" class="inp" type="password" inputmode="numeric" maxlength="6" placeholder="4-6 rakam">
+      <div style="height:10px"></div>
+      <button type="button" id="giftPinSet" class="btn-ghost">Şifreyi belirle</button>
+    </div>`;
+  }
+  if (!giftsOpen) {
+    return `
+    <div class="card">
+      <div class="card-title">🎁 Hediyeler</div>
+      <input id="giftPinIn" class="inp" type="password" inputmode="numeric" maxlength="6" placeholder="Hediye şifresi">
+      <div style="height:10px"></div>
+      <button type="button" id="giftUnlock" class="btn-ghost">Aç</button>
+    </div>`;
+  }
+  const st = summarize(s);
+  const opened = s.openedGifts || {};
+  return `
+  <div class="card">
+    <div class="card-title">🎁 Hediyeler</div>
+    ${s.gifts.length
+      ? `<ul class="gadm-list">${s.gifts.map(g => giftAdminRow(g, st, opened)).join('')}</ul>`
+      : '<p class="hint" style="text-align:left;margin:0 0 11px">Henüz hediye yok.</p>'}
+    <div class="gadm-form">
+      <label class="lbl" for="gName">Hediye</label>
+      <input id="gName" class="inp" type="text" maxlength="80" placeholder="Örn: Sinema bileti">
+      <div class="frow" style="margin-top:9px">
+        <div>
+          <label class="lbl" for="gKind">Koşul</label>
+          <select id="gKind" class="inp">${GIFT_KINDS.map(k => `<option value="${k.key}">${esc(k.label)}</option>`).join('')}</select>
+        </div>
+        <div>
+          <label class="lbl" for="gTarget">Hedef</label>
+          <input id="gTarget" class="inp" type="number" inputmode="numeric" min="1" placeholder="Örn: 70">
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <button type="button" id="gAdd" class="btn-primary wide">Hediye ekle 🎁</button>
+    </div>
+    <p class="hint" style="text-align:left;margin:12px 0 9px">
+      Kardeşin yalnız koşulu ve ilerlemeyi görür. Koşul sağlanınca kutu sallanır,
+      dokununca hediyenin adı açılır.
+    </p>
+    <div class="btn-row">
+      <button type="button" id="giftPinChange" class="btn-ghost">Şifreyi değiştir</button>
+      <button type="button" id="giftClose" class="btn-ghost">Kapat 🔒</button>
+    </div>
+  </div>`;
+}
 
 export function render() {
   const s = store.get();
@@ -37,6 +116,8 @@ export function render() {
     <div style="height:10px"></div>
     <button type="button" id="savePin" class="btn-ghost">Şifreyi güncelle</button>
   </div>
+
+  ${giftCard(s)}
 
   ${sync.enabled() ? `
   <div class="card">
@@ -151,6 +232,64 @@ export function bind(root, ctx) {
   });
 
   $('#syncBtn')?.addEventListener('click', () => ctx.syncNow());
+
+  /* ---- hediyeler ---- */
+  const pinOk = v => /^\d{4,6}$/.test(v);
+
+  $('#giftPinSet')?.addEventListener('click', () => {
+    const v = $('#giftPinNew').value.trim();
+    if (!pinOk(v)) { ctx.toast('Şifre 4-6 rakam olmalı'); return; }
+    store.setMeta({ giftPin: v });
+    giftsOpen = true;
+    ctx.rerender();
+  });
+
+  const unlock = () => {
+    if ($('#giftPinIn').value.trim() !== store.get().giftPin) { ctx.toast('Şifre yanlış'); return; }
+    giftsOpen = true;
+    ctx.rerender();
+  };
+  $('#giftUnlock')?.addEventListener('click', unlock);
+  $('#giftPinIn')?.addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+
+  $('#giftClose')?.addEventListener('click', () => { giftsOpen = false; ctx.rerender(); });
+
+  $('#giftPinChange')?.addEventListener('click', () => {
+    const v = (prompt('Yeni hediye şifresi (4-6 rakam)') || '').trim();
+    if (!v) return;
+    if (!pinOk(v)) { ctx.toast('Şifre 4-6 rakam olmalı'); return; }
+    store.setMeta({ giftPin: v });
+    ctx.toast('Hediye şifresi güncellendi 🔒');
+  });
+
+  $('#gAdd')?.addEventListener('click', () => {
+    const name = $('#gName').value.trim();
+    const kind = $('#gKind').value;
+    const target = clampInt($('#gTarget').value, 0, 999999);
+    if (!name) { ctx.toast('Hediyenin adını yaz'); return; }
+    if (!GIFT_KIND_MAP[kind] || target < 1) { ctx.toast('Hedefi gir'); return; }
+    store.addGift({ name, kind, target });
+    ctx.refreshHeader();
+    ctx.rerender();
+    ctx.toast('Hediye eklendi 🎁');
+  });
+
+  root.addEventListener('change', e => {
+    const cb = e.target.closest('[data-gdeliver]');
+    if (!cb) return;
+    store.setGiftDelivered(cb.dataset.gdeliver, cb.checked);
+    ctx.toast(cb.checked ? 'Teslim edildi olarak işaretlendi 💝' : 'Teslim işareti kaldırıldı');
+  });
+
+  root.addEventListener('click', e => {
+    const del = e.target.closest('[data-gdel]');
+    if (!del) return;
+    const g = store.findGift(del.dataset.gdel);
+    if (!g || !confirm(`"${g.name}" silinsin mi?`)) return;
+    store.removeGift(g.id);
+    ctx.refreshHeader();
+    ctx.rerender();
+  });
 
   $('#lockBtn').addEventListener('click', () => ctx.lock());
 }

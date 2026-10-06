@@ -34,6 +34,19 @@ export const LEVEL_TITLES = [
 export const xpForLevel = n => 20 * n * (n - 1);
 
 /**
+ * Hediye koşul türleri. Ölçütler hep "en iyi" değerden okunur (gamify.giftProgress),
+ * bu yüzden açılan hediye kötü bir denemeyle tekrar kilitlenmez.
+ */
+export const GIFT_KINDS = [
+  { key: 'net',       label: 'Deneme neti',        cond: t => `Bir denemede ${t} net yap` },
+  { key: 'score',     label: 'Tahmini LGS puanı',  cond: t => `Bir denemede ${t} puan al` },
+  { key: 'level',     label: 'Seviye',             cond: t => `Sv. ${t} ol` },
+  { key: 'questions', label: 'Toplam soru',        cond: t => `Toplam ${t} soru çöz` },
+  { key: 'streak',    label: 'Gün serisi',         cond: t => `${t} gün üst üste çalış` },
+];
+export const GIFT_KIND_MAP = Object.fromEntries(GIFT_KINDS.map(k => [k.key, k]));
+
+/**
  * İngilizce kelime türleri. Etiket bilerek iki dilli: terimin İngilizcesi de
  * gördükçe öğrenilsin diye her yerde "VERB (fiil)" biçiminde gösterilir.
  */

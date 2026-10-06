@@ -779,3 +779,55 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
   }
   @keyframes sheet-in{from{transform:translateY(100%)}to{transform:none}}
 }
+
+/* ============ HEDİYELER ============ */
+.gifts{padding:6px 14px}
+.gift{display:flex;align-items:center;gap:12px;width:100%;padding:11px 0;text-align:left;background:none;border-bottom:1.5px dashed var(--line)}
+.gift:last-child{border-bottom:0}
+.gift-box{font-size:30px;line-height:1;flex-shrink:0;width:38px;text-align:center}
+.gift-body{flex:1;min-width:0}
+.gift-name{font-family:'Baloo 2',sans-serif;font-size:15px;color:var(--pink-deep);line-height:1.2}
+.gift-cond{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.gift-prog{align-items:stretch;margin-top:6px;max-width:340px}
+.gift-prog .badge-prog-txt{align-self:flex-end}
+.gift.locked .gift-box{filter:grayscale(1);opacity:.45}
+.gift.locked .gift-cond{color:inherit;font-size:13px;margin:0}
+.gift-state{font-size:11px;font-weight:700;color:var(--ink-soft);background:var(--line);border-radius:99px;padding:4px 9px;flex-shrink:0}
+.gift-state.done{color:#fff;background:var(--ok)}
+
+/* hazır kutu: ara ara sallanır, dokununca büyüyüp kaybolur */
+.gift.ready{cursor:pointer}
+.gift.ready .gift-box{animation:gift-wiggle 1.8s ease-in-out infinite;transform-origin:50% 85%}
+.gift.ready:active .gift-box{transform:scale(.92)}
+.gift.opening .gift-box{animation:gift-pop .75s cubic-bezier(.3,1.4,.5,1) forwards}
+@keyframes gift-wiggle{
+  0%,55%,100%{transform:rotate(0) scale(1)}
+  8%{transform:rotate(-14deg) scale(1.08)}
+  16%{transform:rotate(12deg) scale(1.08)}
+  24%{transform:rotate(-10deg) scale(1.05)}
+  32%{transform:rotate(8deg) scale(1.03)}
+  40%{transform:rotate(-4deg)}
+}
+@keyframes gift-pop{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.45) rotate(-10deg)}
+  60%{transform:scale(1.25) rotate(8deg);opacity:1}
+  100%{transform:scale(2.2);opacity:0}
+}
+@media (prefers-reduced-motion:reduce){.gift.ready .gift-box{animation:none}}
+
+/* açılmayı bekleyen hediye varken Rozet sekmesinde nokta */
+.tabbar button.has-gift{position:relative}
+.tabbar button.has-gift::after{
+  content:'';position:absolute;top:6px;right:calc(50% - 16px);width:9px;height:9px;border-radius:50%;
+  background:var(--pink);box-shadow:0 0 0 2px #fff;animation:gift-dot 1.4s ease-in-out infinite;
+}
+@keyframes gift-dot{50%{transform:scale(1.3)}}
+
+/* ayarlar: hediye düzenleyicisi */
+.gadm-list{list-style:none;margin:0 0 12px;padding:0}
+.gadm{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}
+.gadm-main{flex:1;min-width:0}
+.gadm-name{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gadm-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+.gadm-done{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--ink-soft);flex-shrink:0}

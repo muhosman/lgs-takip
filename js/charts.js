@@ -140,7 +140,7 @@ export function miniRing(pct, { size = 76, stroke = 8, color = '#E0609A', track 
  * Yumuşak eğri grafik (çalışma etkinliği). series: [{ name, color, values:[...] }]
  * labels: x ekseni etiketleri (seyrek gösterilir). Son noktada değer balonu.
  */
-export function curves(series, labels, { height = 220, fill = true } = {}) {
+export function curves(series, labels, { height = 220, fill = true, interactive = false } = {}) {
   const W = 640, H = height, L = 34, R = 10, T = 18, B = 26;
   const n = Math.max(2, labels.length);
   const max = Math.max(8, ...series.flatMap(s => s.values));
@@ -180,8 +180,10 @@ export function curves(series, labels, { height = 220, fill = true } = {}) {
       <rect x="-40" y="-14" width="80" height="24" rx="12" fill="${s0.color}"/>
       <text x="0" y="3" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">bugün ${lv}</text>
     </g>`;
-  const dots = series.map(s => s.values.map((v, i) =>
+  // etkileşimli grafikte değerleri sayfa kendisi kutu olarak gösterir (yerel ipucu çakışmasın)
+  const dots = interactive ? '' : series.map(s => s.values.map((v, i) =>
     `<circle cx="${x(i)}" cy="${y(v)}" r="9" fill="transparent"><title>${esc(labels[i])} · ${esc(s.name)}: ${v}</title></circle>`).join('')).join('');
-  return `<svg class="curves" viewBox="0 0 ${W} ${H}" role="img" xmlns="${NS}" style="width:100%;height:auto;font-family:inherit">
+  return `<svg class="curves" viewBox="0 0 ${W} ${H}" role="img" xmlns="${NS}" style="width:100%;height:auto;font-family:inherit"
+    data-l="${L}" data-r="${R}" data-w="${W}" data-t="${T}" data-b="${B}" data-h="${H}" data-top="${top}" data-n="${n}">
     ${grid}${xl}${areas}${lines}${bubble}${dots}</svg>`;
 }

@@ -306,8 +306,37 @@ function activity(state) {
     ${curves([
       { name: 'Soru', color: '#C2427F', values: q },
       { name: 'Doğru', color: '#4FC9A6', values: d },
-    ], labels, { height: 230 })}
+    ], labels, { height: 230, interactive: true })}
+    <div class="tguide" hidden></div>
+    <div class="ttip" hidden></div>
   </div>`;
+}
+
+const DAY_NAMES = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+
+/** Grafikte üzerine gelinen günün kutusu: toplamlar ve ders ders soru */
+function dayTip(day) {
+  const key = keyOf(day);
+  const days = store.get().days;
+  const t = dayTotals(days[key]);
+  const goal = store.goalFor(key) || 0;
+  const subj = SUBJECTS.map(s => {
+    const r = days[key]?.[s.key];
+    const q = r ? (r.d || 0) + (r.y || 0) + (r.b || 0) + (r.ct || 0) : 0;
+    return { s, q, net: r ? netOf(r.d, r.y) : 0 };
+  }).filter(x => x.q > 0);
+  return `
+    <div class="ttip-head"><b>${fmtShort(day)}</b> ${DAY_NAMES[day.getDay()]}${
+      goal && t.q >= goal ? '<span class="ttip-goal">🎯 Hedef tuttu</span>' : ''}</div>
+    ${t.q ? `
+      <div class="ttip-big"><span><b>${t.q}</b>soru</span><span><b>${fmtNet(t.net)}</b>net</span>${
+        goal ? `<span><b>%${Math.min(999, Math.round((t.q / goal) * 100))}</b>hedef</span>` : ''}</div>
+      <div class="ttip-tags">
+        <i class="tg ok">✅ ${t.d}</i><i class="tg bad">❌ ${t.y}</i>${t.b ? `<i class="tg mute">⚪ ${t.b}</i>` : ''}${t.ct ? `<i class="tg teach">🧑‍🏫 ${t.ct}</i>` : ''}
+      </div>
+      <ul class="ttip-subj">${subj.map(x => `
+        <li style="--c:${x.s.color};--i:${x.s.ink}"><span>${x.s.emoji} ${esc(shortName(x.s))}</span><b>${x.q}</b><em>${fmtNet(x.net)} net</em></li>`).join('')}</ul>`
+    : '<div class="ttip-none">Bu gün soru girilmemiş</div>'}`;
 }
 
 /* ---------------- ekran ---------------- */
@@ -373,6 +402,44 @@ export function bind(root, ctx) {
   };
 
   const open = next => { drawer = next; justOpened = true; ctx.rerender(); };
+
+  // Çalışma etkinliği: üzerine gelinen günün kutusu (grafik yerinde tazelendiği için olaylar kökte)
+  const showTip = (clientX, svg) => {
+    const box = svg.closest('.tactivity');
+    const tip = box.querySelector('.ttip'), guide = box.querySelector('.tguide');
+    const rect = svg.getBoundingClientRect();
+    const d = svg.dataset, W = +d.w, L = +d.l, R = +d.r, n = +d.n;
+    const vx = ((clientX - rect.left) / rect.width) * W;
+    const i = Math.max(0, Math.min(n - 1, Math.round(((vx - L) / (W - L - R)) * (n - 1))));
+    const day = addDays(new Date(), -(n - 1 - i));
+    const px = ((L + (i / (n - 1)) * (W - L - R)) / W) * rect.width;
+    const offX = rect.left - box.getBoundingClientRect().left;
+    const offY = rect.top - box.getBoundingClientRect().top;
+    guide.hidden = false;
+    guide.style.left = `${offX + px}px`;
+    guide.style.top = `${offY + (+d.t / +d.h) * rect.height}px`;
+    guide.style.height = `${((+d.h - +d.t - +d.b) / +d.h) * rect.height}px`;
+    if (tip.dataset.i !== String(i)) { tip.innerHTML = dayTip(day); tip.dataset.i = i; }
+    tip.hidden = false;
+    // kutu imlecin sağında, sığmazsa solunda
+    const tw = tip.offsetWidth, bw = box.clientWidth;
+    let left = offX + px + 14;
+    if (left + tw > bw - 8) left = offX + px - tw - 14;
+    tip.style.left = `${Math.max(8, left)}px`;
+    tip.style.top = `${offY + 8}px`;
+  };
+  const hideTip = () => {
+    root.querySelectorAll('.tactivity .ttip, .tactivity .tguide').forEach(el => { el.hidden = true; });
+  };
+  root.addEventListener('mousemove', e => {
+    const svg = e.target.closest?.('.tactivity svg.curves');
+    if (svg) showTip(e.clientX, svg); else if (!e.target.closest?.('.tactivity .ttip')) hideTip();
+  });
+  root.addEventListener('mouseleave', hideTip);
+  root.addEventListener('touchstart', e => {
+    const svg = e.target.closest?.('.tactivity svg.curves');
+    if (svg) showTip(e.touches[0].clientX, svg); else hideTip();
+  }, { passive: true });
 
   root.addEventListener('click', e => {
     const t = e.target;

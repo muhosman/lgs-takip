@@ -10,7 +10,7 @@ import { keyOf, dateOf, addDays, todayKey, netOf, goalOf, weekStart, estimateSco
  *  xp  = kazanılan puan (çözdürdüğü ekstra puan getirir)
  */
 export function dayTotals(day) {
-  const t = { d:0, y:0, b:0, ct:0, own:0, q:0, xp:0, net:0, subjects:0 };
+  const t = { d:0, y:0, b:0, ct:0, own:0, q:0, xp:0, gq:0, net:0, subjects:0 };
   if (!day) return t;
   for (const s of SUBJECTS) {
     const r = day[s.key];
@@ -21,6 +21,8 @@ export function dayTotals(day) {
     t.d += r.d||0; t.y += r.y||0; t.b += r.b||0;
     t.ct += ct; t.own += own; t.q += own + ct;
     t.xp += own * XP_PER_OWN + ct * XP_PER_TAUGHT;
+    // hedef sorusu: çözdürdüğü soru hedefte de XP_PER_TAUGHT kadar sayılır (seviye/rozetle aynı denge)
+    t.gq += own + ct * XP_PER_TAUGHT;
     t.net += netOf(r.d, r.y);
   }
   return t;
@@ -49,7 +51,7 @@ export function currentStreak(days) {
 /** O gün yürürlükteki hedef tutturuldu mu? */
 const hitGoal = (state, key) => {
   const goal = goalOf(state, key);
-  return goal > 0 && dayTotals(state.days[key]).q >= goal;
+  return goal > 0 && dayTotals(state.days[key]).gq >= goal;
 };
 
 /** Bugüne kadar kesintisiz hedef serisi. Bugün henüz tutmadıysa dünden itibaren sayar. */
@@ -76,10 +78,10 @@ export function streakRisk(state) {
   const streak = currentStreak(state.days);
   const goalStreak = currentGoalStreak(state);
   return {
-    streak, goalStreak, todayQ: t.q, goal,
+    streak, goalStreak, todayQ: t.gq, goal,
     atRisk: streak > 0 && t.q === 0,
-    goalAtRisk: goalStreak > 0 && goal > 0 && t.q < goal,
-    goalLeft: Math.max(0, goal - t.q),
+    goalAtRisk: goalStreak > 0 && goal > 0 && t.gq < goal,
+    goalLeft: Math.max(0, goal - t.gq),
   };
 }
 
@@ -111,13 +113,13 @@ function periodStats(state, days) {
     if (t.q > 0) {
       const wk = keyOf(weekStart(d));
       const mo = key.slice(0, 7);
-      byWeek.set(wk, (byWeek.get(wk) || 0) + t.q);
-      byMonth.set(mo, (byMonth.get(mo) || 0) + t.q);
+      byWeek.set(wk, (byWeek.get(wk) || 0) + t.xp);
+      byMonth.set(mo, (byMonth.get(mo) || 0) + t.xp);
     }
 
     // Üst üste hedef tutturulan gün sayısı (arada boş gün kalırsa seri kopar)
     const goal = goalOf(state, key);
-    const hit = goal > 0 && t.q >= goal;
+    const hit = goal > 0 && t.gq >= goal;
     const consecutive = prevKey !== null && Math.round((d - dateOf(prevKey)) / 86400000) === 1;
     run = hit ? (consecutive ? run + 1 : 1) : 0;
     if (run > bestGoalStreak) bestGoalStreak = run;
@@ -154,29 +156,31 @@ function examStats(exams) {
 /** Tüm zamanların özeti — rozet testleri ve istatistik ekranı bunu kullanır */
 export function summarize(state) {
   const days = state.days;
-  const per = {};
+  const per = {}, perW = {};   // perW: puanlı (çözdürdüğü 2 sayılır)
   let totalQ = 0, totalOwn = 0, totalD = 0, totalY = 0, totalB = 0, totalTaught = 0, totalXp = 0;
-  let bestDay = 0, bestAccuracy = 0, goalDays = 0, allSixDay = false, activeDays = 0;
+  let bestDay = 0, bestDayW = 0, bestAccuracy = 0, goalDays = 0, allSixDay = false, activeDays = 0;
   let bestWeekendDay = 0, sixSubjectDays = 0;
 
   for (const key of Object.keys(days)) {
     const t = dayTotals(days[key]);
     if (t.q > 0) activeDays++;
-    if (t.q > bestWeekendDay && [0, 6].includes(dateOf(key).getDay())) bestWeekendDay = t.q;
+    if (t.xp > bestWeekendDay && [0, 6].includes(dateOf(key).getDay())) bestWeekendDay = t.xp;
     totalQ += t.q; totalOwn += t.own; totalD += t.d; totalY += t.y; totalB += t.b;
     totalTaught += t.ct; totalXp += t.xp;
     if (t.q > bestDay) bestDay = t.q;
+    if (t.xp > bestDayW) bestDayW = t.xp;
     if (t.own >= 20) {
       const acc = (t.d / t.own) * 100;
       if (acc > bestAccuracy) bestAccuracy = acc;
     }
     const goal = goalOf(state, key);   // o gün yürürlükte olan hedef
-    if (goal > 0 && t.q >= goal) goalDays++;
+    if (goal > 0 && t.gq >= goal) goalDays++;
     if (t.subjects >= 6) { allSixDay = true; sixSubjectDays++; }
     for (const s of SUBJECTS) {
       const r = days[key][s.key];
       if (!r) continue;
       per[s.key] = (per[s.key] || 0) + (r.d||0) + (r.y||0) + (r.b||0) + (r.ct||0);
+      perW[s.key] = (perW[s.key] || 0) + (r.d||0) + (r.y||0) + (r.b||0) + (r.ct||0) * XP_PER_TAUGHT;
     }
   }
 
@@ -195,7 +199,7 @@ export function summarize(state) {
   const stats = {
     totalQ, totalOwn, totalD, totalY, totalB, totalTaught, xp: totalXp,
     bookCount: books.length, unitsTotal, unitsDone, booksFinished,
-    activeDays, bestDay, bestAccuracy, goalDays, allSixDay,
+    activeDays, bestDay, bestDayW, perSubjectW: perW, bestAccuracy, goalDays, allSixDay,
     bestWeekendDay, sixSubjectDays,
     ...period,                          // bestWeek, bestMonth, activeWeeks, activeMonths, goalStreak
     bestExamScore: exam.bestScore,
@@ -235,7 +239,7 @@ const GIFT_VALUE = {
   net:       st => st.bestExamNet,
   score:     st => st.bestExamScore,
   level:     st => levelInfo(st.xp).level,
-  questions: st => st.totalQ,
+  questions: st => st.xp,             // puanlı soru: çözdürdüğü 2 sayılır
   streak:    st => st.bestStreak,
   badges:    st => earnedBadges(st).length,
   // elmas: her rozet dizisinin en zoru (data.js'te rarity)

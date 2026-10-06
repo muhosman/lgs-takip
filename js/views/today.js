@@ -44,15 +44,16 @@ function dayInfo(key) {
   const t = dayTotals(store.get().days[key]);
   const goal = store.goalFor(key) || 0;
   const today = todayKey();
-  const pct = goal ? Math.min(100, Math.round((t.q / goal) * 100)) : 0;
+  const pct = goal ? Math.min(100, Math.round((t.gq / goal) * 100)) : 0;
   const status = key > today ? 'future'
-    : goal > 0 && t.q >= goal ? 'perfect'
+    : goal > 0 && t.gq >= goal ? 'perfect'
     : t.q > 0 ? 'partial'
     : key === today ? 'today' : 'missed';
-  const ratio = goal ? t.q / goal : 0;
+  const ratio = goal ? t.gq / goal : 0;
   // alev: hedefin çok üstü (%150 → 2 katman, %200 → 3 katman)
   const fire = status === 'perfect' ? (ratio >= 2 ? 3 : ratio >= 1.5 ? 2 : 0) : 0;
-  return { key, q: t.q, goal, pct, status, t, fire };
+  // q: hedef sorusu (çözdürdüğü 2 sayılır); takvim ve panel bununla gösterir
+  return { key, q: t.gq, raw: t.q, goal, pct, status, t, fire };
 }
 
 /** Seçili güne kadar kesintisiz tam gün sayısı (o gün tam değilse 0) */
@@ -160,7 +161,7 @@ function dayPanel() {
         <span class="dayp-q"><b>${info.q}</b> / ${info.goal || '–'} soru</span>
         ${info.status === 'perfect' ? '<span class="dayp-star">★ Tam gün</span>' : info.goal ? `<span class="dayp-left">Hedefe <b>${Math.max(0, info.goal - info.q)}</b> soru</span>` : ''}
         <span class="dayp-chain">🔗 Zincir: <b>${chain}</b> gün</span>
-        <span class="dayp-net">${fmtNet(info.t.net)} net · ${info.t.d} doğru</span>
+        <span class="dayp-net">${fmtNet(info.t.net)} net · ${info.t.d} doğru${info.t.ct ? ` · 🧑‍🏫 ${info.t.ct} çözdürme ×2` : ''}</span>
       </div>
     </div>
     <div class="dayp-boxes">${SUBJECTS.map(s => subjectBox(s, selDay, !canEdit)).join('')}</div>
@@ -230,7 +231,7 @@ function entryDrawer() {
       <div class="ssw" data-ssw>${subjSwitch(day, s.key)}</div>
       <div class="sname"><span>${s.emoji}</span>${esc(s.name)}</div>
       <div class="bsteps">${METRICS.map(m => bigStepper(day, s.key, m, r[m.key])).join('')}</div>
-      <p class="xt-hint">🧑‍🏫 Çözdürdüğün sorular da soru sayına eklenir ve iki kat puan kazandırır.</p>
+      <p class="xt-hint">🧑‍🏫 Çözdürdüğün her soru hedefte, rozetlerde ve seviyede 2 soru sayılır.</p>
     </div>
     <div class="xdrawer-foot">
       <div class="xprev" data-dsum>${drawerSummary(day, s)}</div>
@@ -468,10 +469,10 @@ function dayTip(day) {
   }).filter(x => x.q > 0);
   return `
     <div class="ttip-head"><b>${fmtShort(day)}</b> ${DAY_NAMES[day.getDay()]}${
-      goal && t.q >= goal ? '<span class="ttip-goal">🎯 Hedef tuttu</span>' : ''}</div>
+      goal && t.gq >= goal ? '<span class="ttip-goal">🎯 Hedef tuttu</span>' : ''}</div>
     ${t.q ? `
       <div class="ttip-big"><span><b>${t.q}</b>soru</span><span><b>${fmtNet(t.net)}</b>net</span>${
-        goal ? `<span><b>%${Math.min(999, Math.round((t.q / goal) * 100))}</b>hedef</span>` : ''}</div>
+        goal ? `<span><b>%${Math.min(999, Math.round((t.gq / goal) * 100))}</b>hedef</span>` : ''}</div>
       <div class="ttip-tags">
         <i class="tg ok">✅ ${t.d}</i><i class="tg bad">❌ ${t.y}</i>${t.b ? `<i class="tg mute">⚪ ${t.b}</i>` : ''}${t.ct ? `<i class="tg teach">🧑‍🏫 ${t.ct}</i>` : ''}
       </div>
@@ -512,7 +513,7 @@ export function bind(root, ctx) {
     const t = dayTotals(store.get().days[key]);
     const goal = store.goalFor(key) || 0;
     const flag = 'goal-' + key;
-    if (goal > 0 && t.q >= goal && sessionStorage.getItem(flag) !== '1') {
+    if (goal > 0 && t.gq >= goal && sessionStorage.getItem(flag) !== '1') {
       sessionStorage.setItem(flag, '1');
       confetti();
       ctx.toast('🎉 Günlük hedefini tamamladın!');

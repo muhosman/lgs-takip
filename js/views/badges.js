@@ -1,5 +1,5 @@
 // "Rozetler" ekranı — özet, sıradakiler, filtreler, grup merdivenleri ve rozet detayı
-import { BADGES, BADGE_GROUPS, RARITY } from '../data.js';
+import { BADGES, BADGE_GROUPS, RARITY, isWeighted } from '../data.js';
 import * as store from '../store.js';
 import { summarize, earnedBadges, streakRisk } from '../gamify.js';
 import { esc } from '../utils.js';
@@ -163,6 +163,7 @@ function sheetHtml(x, risk) {
       <div class="bsheet-ico ${has ? '' : 'locked'}">${b.ico}</div>
       <div class="bsheet-name">${esc(b.name)}</div>
       <div class="bsheet-desc">${esc(b.desc)}</div>
+      ${isWeighted(b.track) ? '<div class="bsheet-note">🧑‍🏫 Çözdürdüğün her soru 2 sayılır</div>' : ''}
       ${has
         ? '<div class="bsheet-state done">Kazandın ✓</div>'
         : typeof b.progress === 'function' ? `

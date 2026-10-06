@@ -41,7 +41,7 @@ export const GIFT_KINDS = [
   { key: 'net', emoji: '📝', label: 'Deneme neti',        cond: t => `Bir denemede ${t} net yap`,   left: n => `${n} net kaldı` },
   { key: 'score', emoji: '🎓', label: 'Tahmini LGS puanı',  cond: t => `Bir denemede ${t} puan al`,  left: n => `${n} puan kaldı` },
   { key: 'level', emoji: '⭐', label: 'Seviye',             cond: t => `Sv. ${t} ol`,                left: n => `${n} seviye kaldı` },
-  { key: 'questions', emoji: '✏️', label: 'Toplam soru',        cond: t => `Toplam ${t} soru çöz`,       left: n => `${n} soru kaldı` },
+  { key: 'questions', emoji: '✏️', label: 'Toplam soru',        cond: t => `Toplam ${t} soru çöz (çözdürdüğün 2 sayılır)`,       left: n => `${n} soru kaldı` },
   { key: 'streak', emoji: '🔥', label: 'Gün serisi',         cond: t => `${t} gün üst üste çalış`,    left: n => `${n} gün daha` },
   { key: 'badges', emoji: '🏅', label: 'Rozet sayısı',       cond: t => `Toplam ${t} rozet kazan`,    left: n => `${n} rozet kaldı` },
   { key: 'diamond', emoji: '💎', label: 'Elmas rozet',       cond: t => t === 1 ? 'İlk elmas rozetini kazan' : `${t} elmas rozet kazan`, left: n => `${n} elmas rozet kaldı` },
@@ -89,7 +89,12 @@ export const BADGE_GROUPS = [
 
 /** Bir ölçütün değerini okur. `per:turkce` gibi izler ders bazlı soru sayısıdır. */
 export const trackValue = (s, track) =>
-  track.startsWith('per:') ? (s.perSubject[track.slice(4)] || 0) : (s[track] || 0);
+  track.startsWith('wper:') ? (s.perSubjectW[track.slice(5)] || 0)
+  : track.startsWith('per:') ? (s.perSubject[track.slice(4)] || 0) : (s[track] || 0);
+
+/** Çözdürdüğü sorunun 2 sayıldığı ölçütler (seviyedeki XP ile aynı denge) */
+export const WEIGHTED_TRACKS = new Set(['xp', 'bestDayW', 'bestWeekendDay', 'bestWeek', 'bestMonth']);
+export const isWeighted = track => !!track && (WEIGHTED_TRACKS.has(track) || track.startsWith('wper:'));
 
 /**
  * Sayaca dayalı rozet. `track` ölçütün adı (summarize alanı); aynı izdeki rozetler
@@ -115,28 +120,28 @@ const nf = n => n.toLocaleString('tr-TR');
 
 export const BADGES = [
   /* ---- soru sayısı ---- */
-  tier('ilk',         '🌱', 'İlk Adım',         'İlk soruyu çöz',        'soru', 'totalQ', 1),
-  tier('elli',        '🌿', 'Isınıyor',         '50 soru çöz',           'soru', 'totalQ', 50),
-  tier('yuz',         '💯', 'Yüzler Kulübü',    '100 soru çöz',          'soru', 'totalQ', 100),
-  tier('ikiyuzelli',  '🍀', 'Çeyrek Bin',       '250 soru çöz',          'soru', 'totalQ', 250),
-  tier('besyuz',      '🎯', 'Nişancı',          '500 soru çöz',          'soru', 'totalQ', 500),
-  tier('yediyuzelli', '🎈', 'Yükselişte',       '750 soru çöz',          'soru', 'totalQ', 750),
-  tier('bin',         '🚀', 'Bin Soru',         '1000 soru çöz',         'soru', 'totalQ', 1000),
-  tier('binbesyuz',   '🛸', 'Yörüngede',        '1500 soru çöz',         'soru', 'totalQ', 1500),
-  tier('ikibin',      '🌙', 'İki Bin',          '2000 soru çöz',         'soru', 'totalQ', 2000),
-  tier('ikibucukbin', '🌠', 'Yol Alıyor',       '2500 soru çöz',         'soru', 'totalQ', 2500),
-  tier('ucbin',       '🪐', 'Üç Bin',           '3000 soru çöz',         'soru', 'totalQ', 3000),
-  tier('dortbin',     '☀️', 'Dört Bin',         '4000 soru çöz',         'soru', 'totalQ', 4000),
-  tier('besbin',      '👑', 'Soru Kraliçesi',   '5000 soru çöz',         'soru', 'totalQ', 5000),
-  tier('yedibinbesyuz','🎆', 'Havai Fişek',     '7500 soru çöz',         'soru', 'totalQ', 7500),
-  tier('onbin',       '💎', 'On Bin',           '10.000 soru çöz',       'soru', 'totalQ', 10000),
-  tier('onbesbin',    '🔮', 'On Beş Bin',       '15.000 soru çöz',       'soru', 'totalQ', 15000),
-  tier('yirmibin',    '🏰', 'Yirmi Bin',        '20.000 soru çöz',       'soru', 'totalQ', 20000),
-  tier('yirmibesbin', '🏵️', 'Yirmi Beş Bin',    '25.000 soru çöz',       'soru', 'totalQ', 25000),
-  tier('otuzbin',     '🌌', 'Otuz Bin',         '30.000 soru çöz',       'soru', 'totalQ', 30000),
-  tier('ellibin',     '🦄', 'Efsane',           '50.000 soru çöz',       'soru', 'totalQ', 50000),
-  tier('yetmisbesbin','🐉', 'Ejderha',          '75.000 soru çöz',       'soru', 'totalQ', 75000),
-  tier('yuzbin',      '🏆', 'Yüz Bin',          '100.000 soru çöz',      'soru', 'totalQ', 100000),
+  tier('ilk',         '🌱', 'İlk Adım',         'İlk soruyu çöz',        'soru', 'xp', 1),
+  tier('elli',        '🌿', 'Isınıyor',         '50 soru çöz',           'soru', 'xp', 50),
+  tier('yuz',         '💯', 'Yüzler Kulübü',    '100 soru çöz',          'soru', 'xp', 100),
+  tier('ikiyuzelli',  '🍀', 'Çeyrek Bin',       '250 soru çöz',          'soru', 'xp', 250),
+  tier('besyuz',      '🎯', 'Nişancı',          '500 soru çöz',          'soru', 'xp', 500),
+  tier('yediyuzelli', '🎈', 'Yükselişte',       '750 soru çöz',          'soru', 'xp', 750),
+  tier('bin',         '🚀', 'Bin Soru',         '1000 soru çöz',         'soru', 'xp', 1000),
+  tier('binbesyuz',   '🛸', 'Yörüngede',        '1500 soru çöz',         'soru', 'xp', 1500),
+  tier('ikibin',      '🌙', 'İki Bin',          '2000 soru çöz',         'soru', 'xp', 2000),
+  tier('ikibucukbin', '🌠', 'Yol Alıyor',       '2500 soru çöz',         'soru', 'xp', 2500),
+  tier('ucbin',       '🪐', 'Üç Bin',           '3000 soru çöz',         'soru', 'xp', 3000),
+  tier('dortbin',     '☀️', 'Dört Bin',         '4000 soru çöz',         'soru', 'xp', 4000),
+  tier('besbin',      '👑', 'Soru Kraliçesi',   '5000 soru çöz',         'soru', 'xp', 5000),
+  tier('yedibinbesyuz','🎆', 'Havai Fişek',     '7500 soru çöz',         'soru', 'xp', 7500),
+  tier('onbin',       '💎', 'On Bin',           '10.000 soru çöz',       'soru', 'xp', 10000),
+  tier('onbesbin',    '🔮', 'On Beş Bin',       '15.000 soru çöz',       'soru', 'xp', 15000),
+  tier('yirmibin',    '🏰', 'Yirmi Bin',        '20.000 soru çöz',       'soru', 'xp', 20000),
+  tier('yirmibesbin', '🏵️', 'Yirmi Beş Bin',    '25.000 soru çöz',       'soru', 'xp', 25000),
+  tier('otuzbin',     '🌌', 'Otuz Bin',         '30.000 soru çöz',       'soru', 'xp', 30000),
+  tier('ellibin',     '🦄', 'Efsane',           '50.000 soru çöz',       'soru', 'xp', 50000),
+  tier('yetmisbesbin','🐉', 'Ejderha',          '75.000 soru çöz',       'soru', 'xp', 75000),
+  tier('yuzbin',      '🏆', 'Yüz Bin',          '100.000 soru çöz',      'soru', 'xp', 100000),
 
   /* ---- seviye ---- */
   tier('sv5',  '⭐', 'Net Ustası',       'Sv. 5 ol',  'seviye', 'level', 5),
@@ -177,12 +182,12 @@ export const BADGES = [
   tier('hedefseri100','🏹', 'Hiç Şaşmaz',     '100 gün üst üste hedefi tuttur', 'hedef', 'goalStreak', 100, 'curGoalStreak'),
 
   /* ---- tempo ---- */
-  tier('tempo100',  '🏃', 'Hızlanıyor',             'Bir günde 100 soru',           'tempo', 'bestDay', 100),
-  tier('maraton',   '🦾', 'Maratoncu',              'Bir günde 150 soru',           'tempo', 'bestDay', 150),
-  tier('tempo200',  '🌪️', 'Fırtına',                'Bir günde 200 soru',           'tempo', 'bestDay', 200),
-  tier('tempo300',  '🚴', 'Sınır Tanımaz',          'Bir günde 300 soru',           'tempo', 'bestDay', 300),
-  tier('tempo400',  '🏎️', 'Formula',                'Bir günde 400 soru',           'tempo', 'bestDay', 400),
-  tier('tempo500',  '🚄', 'Hızlı Tren',             'Bir günde 500 soru',           'tempo', 'bestDay', 500),
+  tier('tempo100',  '🏃', 'Hızlanıyor',             'Bir günde 100 soru',           'tempo', 'bestDayW', 100),
+  tier('maraton',   '🦾', 'Maratoncu',              'Bir günde 150 soru',           'tempo', 'bestDayW', 150),
+  tier('tempo200',  '🌪️', 'Fırtına',                'Bir günde 200 soru',           'tempo', 'bestDayW', 200),
+  tier('tempo300',  '🚴', 'Sınır Tanımaz',          'Bir günde 300 soru',           'tempo', 'bestDayW', 300),
+  tier('tempo400',  '🏎️', 'Formula',                'Bir günde 400 soru',           'tempo', 'bestDayW', 400),
+  tier('tempo500',  '🚄', 'Hızlı Tren',             'Bir günde 500 soru',           'tempo', 'bestDayW', 500),
   tier('haftasonu', '🌞', 'Hafta Sonu Kahramanı',   'Hafta sonu bir günde 150 soru','tempo', 'bestWeekendDay', 150),
   tier('hafta500',  '🎡', 'Dolu Hafta',             'Bir haftada 500 soru',         'tempo', 'bestWeek', 500),
   tier('hafta1000', '🎢', 'Bin Soruluk Hafta',      'Bir haftada 1000 soru',        'tempo', 'bestWeek', 1000),
@@ -209,7 +214,7 @@ export const BADGES = [
     const ids = { turkce:'turkce', matematik:'mat', fen:'fen', inkilap:'inkilap', ingilizce:'ingilizce', din:'din' };
     return [500, 1000, 2000, 5000].map((n, i) => tier(
       `${ids[key]}${n}`, ranks[[0, 2, 1, 3][i]][0], ranks[[0, 2, 1, 3][i]][1],
-      `${SUBJ_NAMES[key]} ${nf(n)} soru`, 'ders', `per:${key}`, n));
+      `${SUBJ_NAMES[key]} ${nf(n)} soru`, 'ders', `wper:${key}`, n));
   }),
 
   /* ---- denemeler ---- */

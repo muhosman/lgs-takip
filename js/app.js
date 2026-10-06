@@ -241,7 +241,7 @@ const ctx = {
 function renderTab(tab) {
   // Yönetici kilidi başka sekmeye geçince kapanır (aynı sekmenin yeniden çizimi değil)
   const sameTab = tab === currentTab;
-  if (!sameTab) { admin.lock(); giftAdmin.reset(); exams.reset(); }
+  if (!sameTab) { admin.lock(); giftAdmin.reset(); exams.reset(); english.reset(); }
   currentTab = tab;
   const view = VIEWS[tab];
 

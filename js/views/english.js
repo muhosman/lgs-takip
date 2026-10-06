@@ -168,14 +168,14 @@ export function render() {
 
   // Oyun oynanırken alt sekmeler gizlenir: ekran oyuna kalsın
   return `
+  <div class="xpage">
   ${session ? '' : `
-  <div class="subtabs">
+  <div class="bfilters esubs">
     ${TABS.map(t => `
-      <button type="button" class="subtab ${tab === t.key ? 'on' : ''}" data-sub="${t.key}">
-        ${t.emoji} ${esc(t.label)}
-      </button>`).join('')}
+      <button type="button" class="seg ${tab === t.key ? 'on' : ''}" data-sub="${t.key}">${t.emoji} ${esc(t.label)}</button>`).join('')}
   </div>`}
-  ${body}`;
+  ${body}
+  </div>`;
 }
 
 export function bind(root, ctx) {
@@ -232,6 +232,9 @@ export function bind(root, ctx) {
   // Kelimelerim ekranının kendi dinleyicileri
   if (!session && tab === 'words') words.bind(root, ctx);
 }
+
+/** Sekmeden çıkarken kelime formu ve filtreler sıfırlansın */
+export const reset = () => words.reset();
 
 /** Öğrenilmiş kelime eşiği — başka ekranlar da kullanabilsin */
 export { LEARNED_AT };

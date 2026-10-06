@@ -1,14 +1,14 @@
 // Adam asmaca — Türkçe anlamı verilir, İngilizce kelime harf harf tahmin edilir
 import { typeLabel } from '../data.js';
 import { esc } from '../utils.js';
+import { balloons } from './art.js';
 
-export const meta = { key:'hangman', emoji:'🎪', name:'Adam asmaca', desc:'Harf seçerek kelimeyi bul', min:1 };
+export const meta = { key:'hangman', emoji:'🎈', name:'Balon patlatma', desc:'Harf seçerek kelimeyi bul, balonları kurtar', min:1, theme:'sun' };
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const LIVES = 6;
 
-// Asılma aşamaları — her yanlış harfte bir sonraki çizilir
-const STAGES = ['😀', '🙂', '😐', '😟', '😰', '😵', '💀'];
+let popped = -1;            // az önce patlayan balon (efekt için)
 
 let guessed = new Set();   // seçilen harfler
 let misses = 0;
@@ -19,7 +19,7 @@ let won = false;
 const letters = word => word.en.toLocaleUpperCase('en').split('');
 const isGuessable = ch => /[A-Z]/.test(ch);
 
-function reset() { guessed = new Set(); misses = 0; finished = false; won = false; }
+function reset() { guessed = new Set(); misses = 0; finished = false; won = false; popped = -1; }
 
 export function start() { reset(); }
 
@@ -35,30 +35,30 @@ export function render(session) {
       return `<i class="hm-slot ${guessed.has(ch) ? 'on' : ''}">${guessed.has(ch) ? esc(ch) : ''}</i>`;
     }).join('');
 
+  const lives = LIVES - misses;
+  const mood = finished ? (won ? 'happy' : 'sad') : lives <= 2 ? 'think' : 'idle';
   return `
-  <div class="card game-card">
-    <div class="game-type">${esc(typeLabel(w.type))}</div>
-    <div class="hm-top">
-      <span class="hm-face">${STAGES[Math.min(misses, STAGES.length - 1)]}</span>
-      <span class="hm-lives">${'❤️'.repeat(Math.max(0, LIVES - misses))}${'🤍'.repeat(Math.min(misses, LIVES))}</span>
+  <div class="gq">
+    ${balloons(lives, LIVES, { justPopped: popped, mood })}
+    <div class="hm-clue-box">
+      <span class="gq-type">${esc(typeLabel(w.type))}</span>
+      <b class="hm-clue">${esc(w.tr)}</b>
     </div>
-    <div class="game-prompt hm-clue">${esc(w.tr)}</div>
     <div class="hm-word">${shown}</div>
-
-    ${finished ? `
-      <div class="game-feedback ${won ? 'ok' : 'no'}">
-        ${won
-          ? 'Buldun! <b>+1 ✓</b>'
-          : `Kelime: <b>${esc(w.en)}</b> · <b>−1 ✓</b>`}
-      </div>
-      <button type="button" class="btn-primary wide" data-next>Devam →</button>`
-    : `
+    ${finished ? '' : `
       <div class="hm-keys">
         ${LETTERS.map(l => `
           <button type="button" class="hm-key ${guessed.has(l) ? (letters(w).includes(l) ? 'hit' : 'miss') : ''}"
                   data-letter="${l}" ${guessed.has(l) ? 'disabled' : ''}>${l}</button>`).join('')}
       </div>`}
-  </div>`;
+  </div>
+  ${finished ? `
+    <div class="gsheet ${won ? 'ok' : 'no'}">
+      <div class="gsheet-msg">${won
+        ? `<b>Buldun! 🎈</b><span>${lives} balon kurtardın · +1 ✓</span>`
+        : `<b>Balonlar bitti 😿</b><span>Kelime: <em>${esc(w.en)}</em></span>`}</div>
+      <button type="button" class="gsheet-go" data-next>Devam →</button>
+    </div>` : ''}`;
 }
 
 export function handle(e, session) {
@@ -76,7 +76,8 @@ export function handle(e, session) {
   if (guessed.has(l)) return false;
   guessed.add(l);
 
-  if (!letters(w).includes(l)) misses++;
+  popped = -1;
+  if (!letters(w).includes(l)) { misses++; popped = LIVES - misses; }
 
   if (solved(w)) { finished = true; won = true; session.answer(w.id, true); }
   else if (misses >= LIVES) { finished = true; won = false; session.answer(w.id, false); }

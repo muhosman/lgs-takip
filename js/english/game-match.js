@@ -1,8 +1,9 @@
 // Eşleştirme oyunu — 5 kelime ve 5 anlam karışık durur, ikisi eşleştirilir
 import { esc } from '../utils.js';
 import { shuffle } from './session.js';
+import { mascot } from './art.js';
 
-export const meta = { key:'match', emoji:'🧩', name:'Eşleştirme', desc:'Kelimeleri anlamlarıyla eşleştir', min:5 };
+export const meta = { key:'match', emoji:'🧩', name:'Eşleştirme', desc:'Kelimeleri anlamlarıyla eşleştir', min:5, theme:'mint' };
 
 const ROUND = 5;             // bir turda kaç çift
 
@@ -42,14 +43,25 @@ export function render(session) {
   };
 
   return `
-  <div class="card game-card">
-    <div class="game-ask">Eşleşenlere dokun — ${matched.size}/${left.length}</div>
+  <div class="gq">
+    <div class="gq-ask">
+      <div class="gq-mascot">${mascot(roundDone() ? 'happy' : missId ? 'sad' : 'idle', 84)}</div>
+      <div class="gq-bubble">
+        <span class="gq-type">Eşleştir</span>
+        <b class="gq-word small">${matched.size} / ${left.length}</b>
+        <span class="gq-hint">Kelimeye, sonra anlamına dokun</span>
+      </div>
+    </div>
     <div class="match-grid">
       <div class="match-col">${left.map(w => card(w, 'l')).join('')}</div>
       <div class="match-col">${right.map(w => card(w, 'r')).join('')}</div>
     </div>
-    ${roundDone() ? `<button type="button" class="btn-primary wide" data-next style="margin-top:12px">Devam →</button>` : ''}
-  </div>`;
+  </div>
+  ${roundDone() ? `
+    <div class="gsheet ok">
+      <div class="gsheet-msg"><b>Hepsi eşleşti! 🧩</b><span>Süpersin, devam edelim</span></div>
+      <button type="button" class="gsheet-go" data-next>Devam →</button>
+    </div>` : ''}`;
 }
 
 export function handle(e, session) {

@@ -8,6 +8,7 @@ import { createSession, pool, isLearned } from '../english/session.js';
 import * as choice from '../english/game-choice.js';
 import * as match from '../english/game-match.js';
 import * as hangman from '../english/game-hangman.js';
+import { mascot } from '../english/art.js';
 
 const GAMES = [choice, match, hangman];
 const GAME_MAP = Object.fromEntries(GAMES.map(g => [g.meta.key, g]));
@@ -22,50 +23,57 @@ let opts = { types: [], count: 10, direction: 'mix' };
 function gameSetup() {
   const all = store.get().words || [];
   const selectable = WORD_TYPES.filter(t => all.some(w => w.type === t.key));
-
   return `
-  <div class="card">
-    <div class="card-title">⚙️ Oyun ayarı</div>
-
-    <label class="lbl">Hangi türler? <span class="hint-inline">(seçmezsen hepsi)</span></label>
-    <div class="subj-picker">
-      ${selectable.map(t => `
-        <button type="button" class="spick ${opts.types.includes(t.key) ? 'on' : ''}" data-otype="${t.key}"
-                style="--c:${t.color};--i:var(--ink)">${t.emoji} ${esc(typeLabel(t.key))}</button>`).join('')
-      || '<p class="hint" style="margin:0">Önce kelime ekle 🌸</p>'}
+  <div class="gl-set">
+    <div class="gl-row">
+      <span class="gl-lbl">Türler</span>
+      <div class="gl-chips">
+        <button type="button" class="gl-chip ${!opts.types.length ? 'on' : ''}" data-otype="__all">Hepsi</button>
+        ${selectable.map(t => `
+          <button type="button" class="gl-chip ${opts.types.includes(t.key) ? 'on' : ''}" data-otype="${t.key}" style="--c:${t.color}">${t.emoji} ${esc(t.en)}</button>`).join('')}
+      </div>
     </div>
-
-    <label class="lbl" style="margin-top:13px">Kaç kelime?</label>
-    <div class="pill-row">
-      ${[5, 10, 20, 40].map(n => `
-        <button type="button" class="pill ${opts.count === n ? 'on' : ''}" data-ocount="${n}">${n}</button>`).join('')}
-    </div>
-
-    <label class="lbl" style="margin-top:13px">Soru yönü</label>
-    <div class="pill-row">
-      ${[['mix', '🔀 Karışık'], ['en', '🇬🇧 → 🇹🇷'], ['tr', '🇹🇷 → 🇬🇧']].map(([k, l]) => `
-        <button type="button" class="pill ${opts.direction === k ? 'on' : ''}" data-odir="${k}">${l}</button>`).join('')}
+    <div class="gl-row">
+      <span class="gl-lbl">Kelime</span>
+      <div class="gl-chips">${[5, 10, 20, 40].map(n => `
+        <button type="button" class="gl-chip ${opts.count === n ? 'on' : ''}" data-ocount="${n}">${n}</button>`).join('')}</div>
+      <span class="gl-lbl">Yön</span>
+      <div class="gl-chips">${[['mix', '🔀 Karışık'], ['en', '🇬🇧→🇹🇷'], ['tr', '🇹🇷→🇬🇧']].map(([k, l]) => `
+        <button type="button" class="gl-chip ${opts.direction === k ? 'on' : ''}" data-odir="${k}">${l}</button>`).join('')}</div>
     </div>
   </div>`;
 }
 
+const GAME_ART = {
+  choice: '<span class="ga-a">A</span><span class="ga-b">B</span><span class="ga-c">C</span><span class="ga-d">D</span>',
+  match: '<span class="ga-m1">cat</span><span class="ga-link"></span><span class="ga-m2">kedi</span>',
+  hangman: '<span class="ga-bl b1"></span><span class="ga-bl b2"></span><span class="ga-bl b3"></span><span class="ga-word">B _ _ L O _ N</span>',
+};
+
 function gameList() {
+  const all = store.get().words || [];
+  const learned = all.filter(isLearned).length;
   const available = pool(opts.types).length;
   return `
+  <div class="gl-hero">
+    <div class="gl-mascot">${mascot('happy', 96)}</div>
+    <div class="gl-hero-txt">
+      <small>Kelime oyunları</small>
+      <b>Hadi oynayalım! 🎮</b>
+      <span><b>${all.length}</b> kelime · <b>${learned}</b> öğrenildi · seçili havuzda <b>${available}</b></span>
+    </div>
+    <div class="gl-bubbles" aria-hidden="true"><i>ABC</i><i>★</i><i>Hi!</i></div>
+  </div>
   ${gameSetup()}
-  <div class="grid-cards">
+  <div class="gl-games">
     ${GAMES.map(g => {
       const locked = available < g.meta.min;
       return `
-      <button type="button" class="card game-pick ${locked ? 'locked' : ''}" data-play="${g.meta.key}" ${locked ? 'disabled' : ''}>
-        <span class="game-pick-ico">${g.meta.emoji}</span>
-        <span class="game-pick-main">
-          <span class="game-pick-name">${esc(g.meta.name)}</span>
-          <span class="game-pick-desc">${locked
-            ? `En az ${g.meta.min} kelime gerekiyor (şu an ${available})`
-            : esc(g.meta.desc)}</span>
-        </span>
-        <span class="game-pick-go">${locked ? '🔒' : '▶'}</span>
+      <button type="button" class="gl-game t-${g.meta.theme} ${locked ? 'locked' : ''}" data-play="${g.meta.key}" ${locked ? 'disabled' : ''}>
+        <span class="gl-art">${GAME_ART[g.meta.key] || g.meta.emoji}</span>
+        <span class="gl-name">${g.meta.emoji} ${esc(g.meta.name)}</span>
+        <span class="gl-desc">${locked ? `🔒 En az ${g.meta.min} kelime gerekiyor (şu an ${available})` : esc(g.meta.desc)}</span>
+        <span class="gl-play">${locked ? 'Kilitli' : 'OYNA ▶'}</span>
       </button>`;
     }).join('')}
   </div>`;
@@ -74,18 +82,20 @@ function gameList() {
 function gameResult() {
   const total = session.correct + session.wrong;
   const pct = total ? Math.round((session.correct / total) * 100) : 0;
+  const stars = pct >= 90 ? 3 : pct >= 60 ? 2 : pct > 0 ? 1 : 0;
   return `
-  <div class="card game-card">
-    <div class="game-done-ico">${pct >= 80 ? '🏆' : pct >= 50 ? '🌟' : '💪'}</div>
-    <div class="game-done-title">Oyun bitti!</div>
-    <div class="mini-stats" style="justify-content:center">
-      <div class="mini-stat"><b>${session.correct}</b>doğru</div>
-      <div class="mini-stat"><b>${session.wrong}</b>yanlış</div>
-      <div class="mini-stat"><b>%${pct}</b>başarı</div>
+  <div class="gr">
+    <div class="gr-stars">${[1, 2, 3].map(n => `<span class="${n <= stars ? 'on' : ''}" style="--n:${n}">★</span>`).join('')}</div>
+    <div class="gr-mascot">${mascot(pct >= 50 ? 'happy' : 'sad', 120)}</div>
+    <div class="gr-title">${pct >= 90 ? 'Muhteşem! 🏆' : pct >= 60 ? 'Çok iyi! 🌟' : pct > 0 ? 'Devam et! 💪' : 'Bir daha deneyelim 💪'}</div>
+    <div class="gr-stats">
+      <div class="ok"><b>${session.correct}</b>doğru</div>
+      <div class="no"><b>${session.wrong}</b>yanlış</div>
+      <div><b>%${pct}</b>başarı</div>
     </div>
-    <div class="btn-row" style="margin-top:14px">
-      <button type="button" class="btn-primary" data-replay>🔁 Tekrar oyna</button>
-      <button type="button" class="btn-ghost" data-quit>Oyunlara dön</button>
+    <div class="gr-btns">
+      <button type="button" class="gr-again" data-replay>🔁 Tekrar oyna</button>
+      <button type="button" class="gr-back" data-quit>Oyunlara dön</button>
     </div>
   </div>`;
 }
@@ -94,12 +104,14 @@ function gameScreen() {
   const done = session.done;
   const bar = done ? 100 : (session.index / session.total) * 100;
   return `
-  <div class="game-bar">
-    <button type="button" class="btn-ghost game-quit" data-quit>✕</button>
-    <div class="pbar game-progress"><div class="pfill" style="width:${bar}%"></div></div>
-    <span class="game-score">✅ ${session.correct} · ❌ ${session.wrong}</span>
-  </div>
-  ${done ? gameResult() : game.render(session)}`;
+  <div class="gs t-${game.meta.theme}">
+    <div class="gs-bar">
+      <button type="button" class="gs-quit" data-quit aria-label="oyundan çık">✕</button>
+      <div class="gs-prog"><i style="width:${bar}%"></i><span style="left:${bar}%">⭐</span></div>
+      <span class="gs-score"><b class="ok">✓ ${session.correct}</b><b class="no">✕ ${session.wrong}</b></span>
+    </div>
+    ${done ? gameResult() : game.render(session)}
+  </div>`;
 }
 
 /* ---------------- ilerleme ---------------- */
@@ -203,7 +215,7 @@ export function bind(root, ctx) {
       if (game.handle(e, session)) {
         ctx.rerender();
         ctx.refreshHeader();
-        if (!wasDone && session.done && session.correct > session.wrong) confetti();
+        if (!wasDone && session.done && session.correct >= session.wrong) confetti();
       }
       return;
     }
@@ -217,7 +229,7 @@ export function bind(root, ctx) {
     const ot = t.closest('[data-otype]');
     if (ot) {
       const k = ot.dataset.otype;
-      opts.types = opts.types.includes(k) ? opts.types.filter(x => x !== k) : [...opts.types, k];
+      opts.types = k === '__all' ? [] : opts.types.includes(k) ? opts.types.filter(x => x !== k) : [...opts.types, k];
       ctx.rerender();
       return;
     }

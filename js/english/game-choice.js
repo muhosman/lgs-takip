@@ -2,8 +2,9 @@
 import { typeLabel } from '../data.js';
 import { esc } from '../utils.js';
 import { pool, pick, shuffle } from './session.js';
+import { mascot } from './art.js';
 
-export const meta = { key:'choice', emoji:'🎯', name:'Çoktan seçmeli', desc:'4 şıktan doğrusunu seç', min:4 };
+export const meta = { key:'choice', emoji:'🎯', name:'Çoktan seçmeli', desc:'4 şıktan doğrusunu seç', min:4, theme:'violet' };
 
 let options = [];    // o anki şıklar
 let picked = null;   // seçilen şıkkın kelime id'si
@@ -29,27 +30,35 @@ export function render(session) {
   const prompt = askEn ? w.en : w.tr;
   const answerOf = o => (askEn ? o.tr : o.en);
 
+  const LETTERS = ['A', 'B', 'C', 'D'];
   return `
-  <div class="card game-card">
-    <div class="game-type">${esc(typeLabel(w.type))}</div>
-    <div class="game-prompt">${esc(prompt)}</div>
-    <div class="game-ask">${askEn ? 'Türkçesi hangisi?' : "İngilizcesi hangisi?"}</div>
-    <div class="choices">
-      ${options.map(o => {
+  <div class="gq">
+    <div class="gq-ask">
+      <div class="gq-mascot">${mascot(picked ? (wasRight ? 'happy' : 'sad') : 'think', 84)}</div>
+      <div class="gq-bubble">
+        <span class="gq-type">${esc(typeLabel(w.type))}</span>
+        <b class="gq-word">${esc(prompt)}</b>
+        <span class="gq-hint">${askEn ? 'Türkçesi hangisi?' : 'İngilizcesi hangisi?'}</span>
+      </div>
+    </div>
+    <div class="gq-opts">
+      ${options.map((o, i) => {
         const isAnswer = o.id === w.id;
         let cls = '';
         if (picked) cls = isAnswer ? 'right' : (o.id === picked ? 'wrong' : 'dim');
-        return `<button type="button" class="choice ${cls}" data-choice="${o.id}" ${picked ? 'disabled' : ''}>
-          ${esc(answerOf(o))}
+        return `<button type="button" class="gq-opt c${i} ${cls}" data-choice="${o.id}" ${picked ? 'disabled' : ''}>
+          <span class="gq-l">${LETTERS[i]}</span><span class="gq-t">${esc(answerOf(o))}</span>
         </button>`;
       }).join('')}
     </div>
-    ${picked ? `
-      <div class="game-feedback ${wasRight ? 'ok' : 'no'}">
-        ${wasRight ? '✅ Doğru! <b>+1 ✓</b>' : `❌ Doğrusu: <b>${esc(answerOf(w))}</b> · <b>−1 ✓</b>`}
-      </div>
-      <button type="button" class="btn-primary wide" data-next>Devam →</button>` : ''}
-  </div>`;
+  </div>
+  ${picked ? `
+    <div class="gsheet ${wasRight ? 'ok' : 'no'}">
+      <div class="gsheet-msg">${wasRight
+        ? '<b>Harika! 🎉</b><span>+1 ✓ kazandın</span>'
+        : `<b>Olmadı 😿</b><span>Doğrusu: <em>${esc(answerOf(w))}</em></span>`}</div>
+      <button type="button" class="gsheet-go" data-next>Devam →</button>
+    </div>` : ''}`;
 }
 
 /** true dönerse görünüm yeniden çizilmeli */

@@ -14,7 +14,7 @@ const defaults = () => ({
   goalHistory: [],    // [{ from:'YYYY-MM-DD', goal, _t }] — hedefin o tarihten itibaren geçerli hâli
   examDate: '2027-06-06',
   days: {},           // 'YYYY-MM-DD' -> { _t: zaman damgası, turkce:{d,y,b,s,ct}, ... }
-  exams: [],          // { id, name, date, subjects:{ key:{d,y,b} }, topics:{ key:{ 'konu adı': {d,y,b} } }, _t }
+  exams: [],          // { id, name, date, subjects:{ key:{d,y,b} }, topics:{ key:{ 'konu adı': {d,y,b} } }, ord?, _t }
   deletedExams: [],   // silinen denemeler senkronda geri gelmesin
   examTopics: {},     // ders -> ['konu adı', ...] deneme formundaki konu listesi (Denemeler > Konular)
   books: [],          // { id, subject, name, units:[{id,name,done,doneAt}], _t }
@@ -148,9 +148,13 @@ function sweepTombstones() {
   }
 }
 
+/** Deneme sırası: elle taşınanın `ord`u, öbürlerinin tarihi (gün sayısı) aynı ölçekte karşılaştırılır */
+const examKey = e => e.ord ?? Date.parse(e.date) / 86400000;
+export const examCmp = (a, b) => examKey(a) - examKey(b) || a.date.localeCompare(b.date);
+
 export function addExam(exam) {
   state.exams.push({ ...exam, _t: Date.now() });
-  state.exams.sort((a, b) => a.date.localeCompare(b.date));
+  state.exams.sort(examCmp);
   state.updatedAt = Date.now();
   save();
 }
@@ -169,9 +173,29 @@ export function setExamTopics(subject, list) {
 export function updateExam(id, patch) {
   const ex = state.exams.find(e => e.id === id);
   if (!ex) return;
+  if (patch.date && patch.date !== ex.date) delete ex.ord;   // tarihi değişen deneme yeniden tarih sırasına girer
   Object.assign(ex, patch, { id, _t: Date.now() });
-  state.exams.sort((a, b) => a.date.localeCompare(b.date));
+  state.exams.sort(examCmp);
   state.updatedAt = Date.now();
+  save();
+}
+
+/** Denemeyi listede bir öne (-1) ya da bir arkaya (+1) taşır */
+export function moveExam(id, dir) {
+  const list = [...state.exams].sort(examCmp);
+  const i = list.findIndex(e => e.id === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  // sıra korunur, anahtarlar tarih ölçeğinde kalır: sonradan eklenen deneme yine tarihine göre yerleşir
+  const now = Date.now();
+  let prev = -Infinity;
+  for (const e of list) {
+    const k = Math.max(Date.parse(e.date) / 86400000, prev + 0.001);
+    if (e.ord !== k) { e.ord = k; e._t = now; }
+    prev = k;
+  }
+  state.exams = list;
+  state.updatedAt = now;
   save();
 }
 
@@ -480,7 +504,7 @@ export function mergeDocs(a, b) {
   }
   out.exams = [...byId.values()]
     .filter(e => !deleted.has(e.id))
-    .sort((x, y) => x.date.localeCompare(y.date));
+    .sort(examCmp);
   out.deletedExams = [...deleted];
 
   const deletedB = new Set([...(a.deletedBooks || []), ...(b.deletedBooks || [])]);

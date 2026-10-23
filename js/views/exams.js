@@ -1,9 +1,10 @@
-// "Denemeler" ekranı — özet, puan grafiği, konu yanlışları ve deneme geçmişi.
-// Ekleme/düzenleme sağdan açılan drawer'da; yönetici şifresiyle korunur.
+// "Denemeler" ekranı: özet, puan ve eksik analizleri, deneme geçmişi.
+// Ekleme/düzenleme sağdan açılan drawer'da, yazdıkça kaydedilir.
 import { SUBJECTS, SUBJ_MAP } from '../data.js';
 import * as store from '../store.js';
 import { netOf, fmtNet, estimateScore, todayKey, dateOf, fmtShort, clampInt, esc } from '../utils.js';
 import { line } from '../charts.js';
+import { rec, topicStats, filterBar, focusCard, subjectCard, eksikCard, changeCard, topicTable } from './examAnalysis.js';
 import { confetti } from '../confetti.js';
 
 // drawer: null | { mode:'add' } | { mode:'edit', id } | { mode:'topics' }
@@ -12,10 +13,12 @@ let justOpened = false;
 // formdaki konu kutularının adları: data-tp="ders:sıra" ile eşleşir (adlarda tırnak olabilir)
 let formTopics = {};
 let drawerScroll = 0;      // konu ayarında yeniden çizimde kaydırma kaybolmasın
-let focusSubject = null;
+let focusSubject = null;    // konu eklenen dersin kutusu yeniden odaklansın
 let saveTimer = null;       // yazarken kaydetme beklemesi
 let savedAny = false;       // drawer açıkken en az bir kayıt yapıldı mı
-let createdNew = false;     // bu drawer'da yeni deneme oluşturuldu mu (kapanışta konfeti)   // konu eklenen dersin kutusu yeniden odaklansın
+let createdNew = false;     // bu drawer'da yeni deneme oluşturuldu mu (kapanışta konfeti)
+let filter = 'all';         // analiz kartlarının ders filtresi
+let renaming = null;        // adı kartta düzenlenen denemenin kimliği
 
 let flushPending = null;    // başka sekmeye geçerken bekleyen kaydı yazar
 
@@ -38,64 +41,62 @@ function topicsOf(subject, ex) {
   return [...seen.values()];
 }
 
-/** Konu kaydı { d, y, b }; eski kayıtlarda yalnız sayı vardı (= yanlış), boş alanı sonradan geldi */
-const rec = v => typeof v === 'number' ? { d: 0, y: v, b: 0 } : { d: v?.d || 0, y: v?.y || 0, b: v?.b || 0 };
-const sumOf = m => Object.values(m || {}).map(rec).reduce((a, r) => ({ d: a.d + r.d, y: a.y + r.y, b: a.b + r.b }), { d: 0, y: 0, b: 0 });
 const FIELDS = [['d', 'doğru'], ['y', 'yanlış'], ['b', 'boş']];
+const sumOf = m => Object.values(m || {}).map(rec).reduce((a, r) => ({ d: a.d + r.d, y: a.y + r.y, b: a.b + r.b }), { d: 0, y: 0, b: 0 });
 
-/** Denemedeki konu yanlışları, en çoktan aza: [{ subject, name, d, y }] */
+/** Denemedeki eksik konular (yanlış + boş), en çoktan aza */
 const examTopics = ex => Object.entries(ex.topics || {})
   .flatMap(([subject, m]) => Object.entries(m).map(([name, v]) => ({ subject, name, ...rec(v) })))
-  .filter(t => t.y > 0)
-  .sort((a, b) => b.y - a.y);
-
-/** Tüm denemelerden konu bazında toplam yanlış */
-function weakTopics(exams) {
-  const m = new Map();
-  for (const ex of exams) {
-    for (const t of examTopics(ex)) {
-      const k = t.subject + '|' + topicKey(t.name);
-      const cur = m.get(k) || { ...t, y: 0, n: 0 };
-      cur.y += t.y; cur.n++;
-      m.set(k, cur);
-    }
-  }
-  return [...m.values()].sort((a, b) => b.y - a.y);
-}
+  .filter(t => t.y + t.b > 0)
+  .sort((a, b) => (b.y + b.b) - (a.y + a.b));
 
 /* ---------------- deneme kartı ---------------- */
-function examCard(ex) {
+function examCard(ex, pos, count) {
   const score = estimateScore(ex.subjects);
   const total = examNet(ex);
-  const tops = examTopics(ex).slice(0, 3);
+  const sum = SUBJECTS.reduce((a, s) => {
+    const r = ex.subjects[s.key] || {};
+    return { d: a.d + (r.d || 0), y: a.y + (r.y || 0), b: a.b + (r.b || 0) };
+  }, { d: 0, y: 0, b: 0 });
+  const tops = examTopics(ex).slice(0, 4);
   return `
   <article class="xcard">
     <div class="xcard-top">
       <div class="xcard-title">
-        <div class="xcard-name">${esc(ex.name)}</div>
+        ${renaming === ex.id
+          ? `<input class="inp xcard-rename" data-rename-inp="${ex.id}" value="${esc(ex.name)}" maxlength="40" aria-label="Deneme adı">`
+          : `<button type="button" class="xcard-name" data-rename="${ex.id}" title="Adı değiştir">${esc(ex.name)} <span aria-hidden="true">✎</span></button>`}
         <div class="xcard-date">${fmtShort(dateOf(ex.date))} ${dateOf(ex.date).getFullYear()}</div>
       </div>
-      <div class="xcard-nums">
-        <span><b>${fmtNet(total)}</b>net</span>
-        <span class="xcard-score"><b>${score}</b>puan</span>
-      </div>
       <div class="xcard-acts">
+        <button type="button" class="ga-btn" data-move="${ex.id}" data-dir="1" aria-label="sırada yukarı al" ${pos === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" class="ga-btn" data-move="${ex.id}" data-dir="-1" aria-label="sırada aşağı al" ${pos === count - 1 ? 'disabled' : ''}>↓</button>
         <button type="button" class="ga-btn" data-edit="${ex.id}" aria-label="düzenle">✏️</button>
         <button type="button" class="ga-btn danger" data-del="${ex.id}" aria-label="sil">🗑</button>
       </div>
     </div>
-    <div class="xbars">
-      ${SUBJECTS.map(s => {
-        const r = ex.subjects[s.key] || { d: 0, y: 0 };
-        const n = netOf(r.d, r.y);
-        return `<div class="xbar" title="${esc(s.name)}: ${r.d || 0} doğru, ${r.y || 0} yanlış, ${r.b || 0} boş">
-          <span class="xbar-track"><i style="width:${Math.round((n / s.q) * 100)}%;background:${s.color}"></i></span>
-          <span class="xbar-lbl">${s.emoji} ${fmtNet(n)}</span>
-        </div>`;
-      }).join('')}
+    <div class="xsum">
+      <div class="xsum-main"><b>${fmtNet(total)}</b>net</div>
+      <div class="xsum-main score"><b>${score}</b>puan</div>
+      <div class="xsum-dyb"><b class="d">${sum.d}</b>doğru</div>
+      <div class="xsum-dyb"><b class="y">${sum.y}</b>yanlış</div>
+      <div class="xsum-dyb"><b class="b">${sum.b}</b>boş</div>
     </div>
+    <table class="xsub">
+      <thead><tr><th>Ders</th><th>D</th><th>Y</th><th>B</th><th>Net</th></tr></thead>
+      <tbody>${SUBJECTS.map(s => {
+        const r = ex.subjects[s.key] || {};
+        const n = netOf(r.d, r.y);
+        return `<tr>
+          <td><span class="xsub-name">${s.emoji} ${esc(s.name)}</span>
+            <span class="xbar-track"><i style="width:${Math.round((n / s.q) * 100)}%;background:${s.color}"></i></span></td>
+          <td class="d">${r.d || 0}</td><td class="y">${r.y || 0}</td><td class="b">${r.b || 0}</td>
+          <td class="n">${fmtNet(n)}<small>/${s.q}</small></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
     ${tops.length ? `
-      <div class="xcard-topics">❌ ${tops.map(t => `<span>${esc(t.name)} <b>${t.y}</b></span>`).join('')}</div>` : ''}
+      <div class="xcard-topics"><em>Eksik konular</em> ${tops.map(t => `<span>${esc(t.name)} <b>${[t.y && `${t.y}Y`, t.b && `${t.b}B`].filter(Boolean).join(' ')}</b></span>`).join('')}</div>` : ''}
   </article>`;
 }
 
@@ -206,8 +207,8 @@ export function render() {
   const last = exams.length ? trend[trend.length - 1].value : 0;
   const prev = exams.length > 1 ? trend[trend.length - 2].value : null;
   const diff = prev !== null ? last - prev : null;
-  const weak = weakTopics(exams).slice(0, 8);
-  const maxWeak = weak.length ? weak[0].y : 1;
+  const topics = topicStats(exams, filter);
+  const shown = [...exams].reverse();   // geçmişte en yeni üstte
   const html = `
   <div class="xpage">
     <div class="xhead">
@@ -225,24 +226,22 @@ export function render() {
 
     ${exams.length ? `
       <div class="xgrid">
-        <div class="card">
+        <div class="card xa-card">
           <div class="card-title">📈 Puan gelişimin</div>
           ${line(trend, { min: 100, max: 500, height: 165 })}
         </div>
-        <div class="card">
-          <div class="card-title">🎯 En çok yanlış yaptığın konular</div>
-          ${weak.length ? `<ul class="wtop">${weak.map(t => `
-            <li>
-              <span class="wtop-dot" style="background:${SUBJ_MAP[t.subject]?.color || '#ddd'}"></span>
-              <span class="wtop-name">${esc(t.name)}</span>
-              <span class="wtop-bar"><i style="width:${(t.y / maxWeak) * 100}%;background:${SUBJ_MAP[t.subject]?.color || 'var(--pink)'}"></i></span>
-              <b>${t.y}</b>
-            </li>`).join('')}</ul>`
-          : '<p class="hint" style="text-align:left;margin:0">Denemeye konu yanlışlarını da girersen hangi konuya çalışman gerektiği burada görünür.</p>'}
-        </div>
+        ${subjectCard(exams, 'all')}
       </div>
+      <div class="sec-title">Eksik analizi <small>yanlış + boş</small></div>
+      ${filterBar(filter)}
+      <div class="xgrid">
+        ${focusCard(topics)}
+        ${eksikCard(exams, filter)}
+        ${changeCard(topics)}
+      </div>
+      <div class="xgrid xgrid-one">${topicTable(topics)}</div>
       <div class="sec-title">Deneme geçmişi</div>
-      <div class="xlist">${[...exams].reverse().map(examCard).join('')}</div>
+      <div class="xlist">${shown.map((ex, i) => examCard(ex, i, shown.length)).join('')}</div>
     ` : `<div class="card"><div class="empty"><div>🏆</div>
         Henüz deneme yok.<br>İlk denemeyi ekle, gelişimini grafikte görelim! 📈</div></div>`}
   </div>
@@ -360,6 +359,17 @@ export function bind(root, ctx) {
     }
     if (e.target.closest('[data-closex]')) { close(); return; }
 
+    const fb = e.target.closest('[data-xfilter]');
+    if (fb) { filter = fb.dataset.xfilter; ctx.rerender(); return; }
+    const rn = e.target.closest('[data-rename]');
+    if (rn) {
+      renaming = rn.dataset.rename;
+      ctx.rerender();   // yeni görünüm kutuya odaklanır (aşağıda)
+      return;
+    }
+    const mv = e.target.closest('[data-move]');
+    if (mv) { store.moveExam(mv.dataset.move, Number(mv.dataset.dir)); ctx.rerender(); return; }
+
     const ed = e.target.closest('[data-edit]');
     if (ed) { open({ mode: 'edit', id: ed.dataset.edit }); return; }
 
@@ -401,4 +411,22 @@ export function bind(root, ctx) {
   });
 
   root.addEventListener('keydown', e => { if (e.key === 'Escape' && drawer) close(); });
+
+  // kartta ad değiştirme: Enter ya da dışarı tıklama kaydeder, Esc vazgeçer
+  const rin = renaming && $(`[data-rename-inp="${renaming}"]`);
+  if (rin) {
+    const done = keep => {
+      if (!renaming) return;
+      const id = renaming, name = rin.value.trim();
+      renaming = null;
+      if (keep && name) { store.updateExam(id, { name }); ctx.toast('Deneme adı güncellendi'); }
+      ctx.rerender();
+    };
+    rin.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); done(true); }
+      if (e.key === 'Escape') { e.stopPropagation(); done(false); }
+    });
+    rin.addEventListener('blur', () => done(true));
+    rin.focus(); rin.select();
+  }
 }

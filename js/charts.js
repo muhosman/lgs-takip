@@ -187,3 +187,17 @@ export function curves(series, labels, { height = 220, fill = true, interactive 
     data-l="${L}" data-r="${R}" data-w="${W}" data-t="${T}" data-b="${B}" data-h="${H}" data-top="${top}" data-n="${n}">
     ${grid}${xl}${areas}${lines}${bubble}${dots}</svg>`;
 }
+
+/** Küçük gelişim çizgisi: değerler sırayla, son nokta vurgulu */
+export function spark(values, { w = 96, h = 28, color = '#A38CF0', min = null, max = null } = {}) {
+  if (!values.length) return '';
+  const lo = min ?? Math.min(...values), hi = Math.max(max ?? -Infinity, ...values, lo + 1);
+  const x = i => values.length === 1 ? w / 2 : 3 + (i * (w - 6)) / (values.length - 1);
+  const y = v => h - 4 - ((v - lo) / (hi - lo)) * (h - 8);
+  const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const n = values.length - 1;
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="${NS}" aria-hidden="true">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".85"/>
+    ${values.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${i === n ? 3.4 : 2}" fill="${i === n ? color : '#fff'}" stroke="${color}" stroke-width="1.5"/>`).join('')}
+  </svg>`;
+}

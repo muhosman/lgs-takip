@@ -1013,7 +1013,6 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 .xstat b.up{color:var(--ok)}
 .xstat b.down{color:#D64257}
 .xhead-acts{display:flex;gap:8px;flex-shrink:0}
-.xlock{padding:11px 13px}
 .xgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:13px}
 .xgrid > .card{margin:0}
 

@@ -5,7 +5,6 @@ import * as store from '../store.js';
 import { netOf, fmtNet, estimateScore, todayKey, dateOf, fmtShort, clampInt, esc } from '../utils.js';
 import { line } from '../charts.js';
 import { confetti } from '../confetti.js';
-import * as admin from '../admin.js';
 
 // drawer: null | { mode:'add' } | { mode:'edit', id } | { mode:'topics' }
 let drawer = null;
@@ -63,7 +62,6 @@ function examCard(ex) {
   const score = estimateScore(ex.subjects);
   const total = examNet(ex);
   const tops = examTopics(ex).slice(0, 3);
-  const unlocked = admin.isUnlocked();
   return `
   <article class="xcard">
     <div class="xcard-top">
@@ -75,11 +73,10 @@ function examCard(ex) {
         <span><b>${fmtNet(total)}</b>net</span>
         <span class="xcard-score"><b>${score}</b>puan</span>
       </div>
-      ${unlocked ? `
-        <div class="xcard-acts">
-          <button type="button" class="ga-btn" data-edit="${ex.id}" aria-label="düzenle">✏️</button>
-          <button type="button" class="ga-btn danger" data-del="${ex.id}" aria-label="sil">🗑</button>
-        </div>` : ''}
+      <div class="xcard-acts">
+        <button type="button" class="ga-btn" data-edit="${ex.id}" aria-label="düzenle">✏️</button>
+        <button type="button" class="ga-btn danger" data-del="${ex.id}" aria-label="sil">🗑</button>
+      </div>
     </div>
     <div class="xbars">
       ${SUBJECTS.map(s => {
@@ -163,9 +160,7 @@ function drawerHtml() {
   const ex = drawer.mode === 'edit' ? store.get().exams.find(e => e.id === drawer.id) : null;
   const title = topicsMode ? 'Deneme konuları' : ex ? 'Denemeyi düzenle' : 'Yeni deneme';
   formTopics = {};
-  const body = !admin.isUnlocked()
-    ? admin.gateHtml({ title: 'Deneme girişi', hint: 'Deneme eklemek ya da düzenlemek için yönetici şifresini gir.' })
-    : topicsMode ? topicsAdminHtml() : `
+  const body = topicsMode ? topicsAdminHtml() : `
       <div class="frow">
         <div>
           <label class="lbl" for="exName">Deneme adı</label>
@@ -188,7 +183,7 @@ function drawerHtml() {
       <button type="button" class="drawer-x" data-closex aria-label="kapat">✕</button>
     </div>
     <div class="drawer-body">${body}</div>
-    ${admin.isUnlocked() && !topicsMode ? `
+    ${!topicsMode ? `
       <div class="xdrawer-foot">
         <div class="xprev"><span><b id="exNet">0</b>net</span><span><b id="exScore">100</b>tahmini puan</span></div>
         <button type="button" id="exSave" class="btn-primary">${ex ? 'Değişiklikleri kaydet' : 'Denemeyi kaydet 🏆'}</button>
@@ -209,7 +204,6 @@ export function render() {
   const diff = prev !== null ? last - prev : null;
   const weak = weakTopics(exams).slice(0, 8);
   const maxWeak = weak.length ? weak[0].y : 1;
-  const unlocked = admin.isUnlocked();
   const html = `
   <div class="xpage">
     <div class="xhead">
@@ -220,7 +214,6 @@ export function render() {
         <div class="xstat"><b class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff === null ? '–' : (diff >= 0 ? '+' : '') + diff}</b>son değişim</div>
       </div>
       <div class="xhead-acts">
-        ${unlocked ? '<button type="button" class="btn-ghost xlock" data-examlock>🔒</button>' : ''}
         <button type="button" class="btn-ghost" data-topics title="Deneme konuları">⚙️ Konular</button>
         <button type="button" class="btn-primary" data-addexam>+ Deneme ekle</button>
       </div>
@@ -260,9 +253,6 @@ export function bind(root, ctx) {
 
   const open = next => { drawer = next; justOpened = true; ctx.rerender(); };
   const close = () => { drawer = null; ctx.rerender(); };
-
-  admin.bindGate(root, ctx, () => ctx.rerender());
-  if (drawer && !admin.isUnlocked()) setTimeout(() => $('[data-admin-pin]')?.focus(), 200);
 
   /** Ders kutusu boşsa toplam konulardan; yazılmışsa yazılan geçerli */
   const readForm = () => {
@@ -325,7 +315,6 @@ export function bind(root, ctx) {
       return;
     }
     if (e.target.closest('[data-closex]')) { close(); return; }
-    if (e.target.closest('[data-examlock]')) { admin.lock(); drawer = null; ctx.rerender(); ctx.toast('Kilitlendi 🔒'); return; }
 
     const ed = e.target.closest('[data-edit]');
     if (ed) { open({ mode: 'edit', id: ed.dataset.edit }); return; }

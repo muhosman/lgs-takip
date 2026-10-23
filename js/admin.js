@@ -1,4 +1,4 @@
-// Yönetici kilidi — hediye yönetimi ve deneme girişi aynı şifreyi kullanır.
+// Yönetici kilidi, hediye yönetimini korur (deneme girişi artık şifresiz).
 // Şifre `giftPin` alanında durur (eski adı; eşitlenen belgeler bozulmasın diye değişmedi).
 // Kilit oturumluk ve bellekte: başka bir sekmeye geçince app.js kapatır.
 import * as store from './store.js';

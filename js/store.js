@@ -27,6 +27,7 @@ const defaults = () => ({
   openedGifts: {},    // id -> zaman: kutusu açılıp adı görülen hediyeler
   seenGifts: {},      // id -> zaman: "yeni hediye" bildirimi gösterilenler
   giftPin: '',        // hediye düzenleme şifresi (giriş şifresinden ayrı, sürpriz bozulmasın)
+  giftPinAt: 0,       // şifrenin belirlendiği an: eşitlemede şifre bu damgayla birleşir
   updatedAt: 0,       // ayarların son değişme zamanı (birleştirmede kullanılır)
   resetAt: 0,         // "verileri sıfırla" anı; bundan eskisi birleştirmede düşer
   createdAt: new Date().toISOString(),
@@ -45,7 +46,23 @@ export function load() {
   }
   dropRetiredFields();
   sweepTombstones();
+  applyGiftPinReset(state);
   return state;
+}
+
+/* Unutulan yönetici şifresi bir kez sıfırlandı: bu andan eski şifreler her cihazda düşer.
+   Yeni belirlenen şifrenin damgası daha yeni olduğundan tekrar silinmez. */
+const GIFT_PIN_RESET_AT = 1792775222883;
+function applyGiftPinReset(doc) {
+  if ((doc.giftPinAt || 0) < GIFT_PIN_RESET_AT) { doc.giftPin = ''; doc.giftPinAt = GIFT_PIN_RESET_AT; }
+}
+
+/** Yönetici şifresini belirler (hediye yönetimi) */
+export function setGiftPin(pin) {
+  state.giftPin = pin;
+  state.giftPinAt = Date.now();
+  state.updatedAt = state.giftPinAt;
+  save();
 }
 
 export function save() {
@@ -559,6 +576,12 @@ export function mergeDocs(a, b) {
 
   out.seenBadges = [...new Set([...(a.seenBadges || []), ...(b.seenBadges || [])])];
   out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);
+
+  // yönetici şifresi ayarlardan bağımsız: en son belirlenen kazanır
+  const pinSrc = (b.giftPinAt || 0) > (a.giftPinAt || 0) ? b : a;
+  out.giftPin = pinSrc.giftPin || '';
+  out.giftPinAt = pinSrc.giftPinAt || 0;
+  applyGiftPinReset(out);
 
   // Bir cihazda "verileri sıfırla" yapıldıysa, o andan ESKİ her kayıt düşer.
   const resetAt = Math.max(a.resetAt || 0, b.resetAt || 0);

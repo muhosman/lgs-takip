@@ -171,7 +171,7 @@ export function bind(root, ctx) {
     if (e.target.closest('[data-gpinsave]')) {
       const v = ($('#gaNewPin').value || '').trim();
       if (!admin.pinOk(v)) { ctx.toast('Şifre 4-12 rakam olmalı'); return; }
-      store.setMeta({ giftPin: v });
+      store.setGiftPin(v);
       openSheet(null);
       ctx.toast('Yönetici şifresi güncellendi 🔒');
       return;

@@ -38,7 +38,7 @@ export function bindGate(root, ctx, onOpen) {
     const s = store.get();
     if (!s.giftPin) {
       if (!pinOk(v)) { ctx.toast('Şifre 4-12 rakam olmalı'); return; }
-      store.setMeta({ giftPin: v });
+      store.setGiftPin(v);
     } else if (v !== s.giftPin) { ctx.toast('Şifre yanlış'); return; }
     unlocked = true;
     onOpen();

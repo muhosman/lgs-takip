@@ -33,9 +33,10 @@ function topicsOf(subject, ex) {
   return [...seen.values()];
 }
 
-/** Konu kaydı { d, y }; eski kayıtlarda yalnız sayı vardı (= yanlış) */
-const rec = v => typeof v === 'number' ? { d: 0, y: v } : { d: v?.d || 0, y: v?.y || 0 };
-const sumOf = m => Object.values(m || {}).map(rec).reduce((a, r) => ({ d: a.d + r.d, y: a.y + r.y }), { d: 0, y: 0 });
+/** Konu kaydı { d, y, b }; eski kayıtlarda yalnız sayı vardı (= yanlış), boş alanı sonradan geldi */
+const rec = v => typeof v === 'number' ? { d: 0, y: v, b: 0 } : { d: v?.d || 0, y: v?.y || 0, b: v?.b || 0 };
+const sumOf = m => Object.values(m || {}).map(rec).reduce((a, r) => ({ d: a.d + r.d, y: a.y + r.y, b: a.b + r.b }), { d: 0, y: 0, b: 0 });
+const FIELDS = [['d', 'doğru'], ['y', 'yanlış'], ['b', 'boş']];
 
 /** Denemedeki konu yanlışları, en çoktan aza: [{ subject, name, d, y }] */
 const examTopics = ex => Object.entries(ex.topics || {})
@@ -82,7 +83,7 @@ function examCard(ex) {
       ${SUBJECTS.map(s => {
         const r = ex.subjects[s.key] || { d: 0, y: 0 };
         const n = netOf(r.d, r.y);
-        return `<div class="xbar" title="${esc(s.name)}: ${r.d || 0} doğru, ${r.y || 0} yanlış">
+        return `<div class="xbar" title="${esc(s.name)}: ${r.d || 0} doğru, ${r.y || 0} yanlış, ${r.b || 0} boş">
           <span class="xbar-track"><i style="width:${Math.round((n / s.q) * 100)}%;background:${s.color}"></i></span>
           <span class="xbar-lbl">${s.emoji} ${fmtNet(n)}</span>
         </div>`;
@@ -100,16 +101,15 @@ function subjectBlock(s, ex) {
   formTopics[s.key] = topics;
   const saved = ex?.topics?.[s.key] || {};
   const sum = sumOf(saved);
-  const marked = sum.d + sum.y;
+  const marked = sum.d + sum.y + sum.b;
   // ders toplamı konulardan geliyorsa kutu boş kalır (soluk yazıyla toplam görünür)
-  const auto = marked > 0 && (r.d || 0) === sum.d && (r.y || 0) === sum.y;
+  const auto = marked > 0 && FIELDS.every(([f]) => (r[f] || 0) === sum[f]);
   const val = f => auto ? '' : (r[f] || '');
   return `
   <div class="xs" style="--c:${s.color};--i:${s.ink}">
     <div class="xs-row">
       <div class="xs-name">${s.emoji} ${esc(s.name)} <small>/${s.q}</small></div>
-      <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0" value="${val('d')}" data-ex="${s.key}" data-f="d" aria-label="${esc(s.name)} doğru">
-      <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0" value="${val('y')}" data-ex="${s.key}" data-f="y" aria-label="${esc(s.name)} yanlış">
+      ${FIELDS.map(([f, lbl]) => `<input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0" value="${val(f)}" data-ex="${s.key}" data-f="${f}" aria-label="${esc(s.name)} ${lbl}">`).join('')}
     </div>
     <details class="xs-topics" ${marked ? 'open' : ''}>
       <summary>📚 Konulara göre gir <span data-tpsum="${s.key}"></span></summary>
@@ -119,10 +119,8 @@ function subjectBlock(s, ex) {
           return `
           <li class="xt">
             <span class="xt-name">${esc(name)}</span>
-            <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0"
-                   value="${t.d || ''}" data-tp="${s.key}:${i}" data-f="d" aria-label="${esc(name)} doğru">
-            <input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0"
-                   value="${t.y || ''}" data-tp="${s.key}:${i}" data-f="y" aria-label="${esc(name)} yanlış">
+            ${FIELDS.map(([f, lbl]) => `<input type="number" inputmode="numeric" min="0" max="${s.q}" placeholder="0"
+                   value="${t[f] || ''}" data-tp="${s.key}:${i}" data-f="${f}" aria-label="${esc(name)} ${lbl}">`).join('')}
           </li>`;
         }).join('')}
         </ul>
@@ -171,7 +169,7 @@ function drawerHtml() {
           <input id="exDate" class="inp" type="date" value="${ex?.date || todayKey()}">
         </div>
       </div>
-      <div class="xs-head"><span>Ders</span><span>Doğru</span><span>Yanlış</span></div>
+      <div class="xs-head"><span>Ders</span><span>Doğru</span><span>Yanlış</span><span>Boş</span></div>
       ${SUBJECTS.map(s => subjectBlock(s, ex)).join('')}`;
 
   return `
@@ -259,14 +257,14 @@ export function bind(root, ctx) {
     const subjects = {}, topics = {}, auto = {};
     for (const s of SUBJECTS) {
       (formTopics[s.key] || []).forEach((name, i) => {
-        const d = clampInt($(`[data-tp="${s.key}:${i}"][data-f="d"]`)?.value || 0, 0, s.q);
-        const y = clampInt($(`[data-tp="${s.key}:${i}"][data-f="y"]`)?.value || 0, 0, s.q);
-        if (d || y) (topics[s.key] ||= {})[name] = { d, y };
+        const [d, y, b] = FIELDS.map(([f]) => clampInt($(`[data-tp="${s.key}:${i}"][data-f="${f}"]`)?.value || 0, 0, s.q));
+        if (d || y || b) (topics[s.key] ||= {})[name] = { d, y, b };
       });
       const sum = sumOf(topics[s.key]);
       const field = f => $(`[data-ex="${s.key}"][data-f="${f}"]`)?.value;
       const pick = f => field(f) === '' || field(f) == null ? sum[f] : clampInt(field(f), 0, s.q);
-      subjects[s.key] = { d: Math.min(pick('d'), s.q), y: Math.min(pick('y'), s.q) };
+      const d = Math.min(pick('d'), s.q), y = Math.min(pick('y'), s.q);
+      subjects[s.key] = { d, y, b: Math.min(pick('b'), Math.max(0, s.q - d - y)) };   // boş, kalan soruyu aşmaz
       auto[s.key] = sum;
     }
     return { subjects, topics, auto };
@@ -280,15 +278,15 @@ export function bind(root, ctx) {
     $('#exScore').textContent = estimateScore(subjects);
     for (const s of SUBJECTS) {
       const sum = auto[s.key];
-      ['d', 'y'].forEach(f => {
+      FIELDS.forEach(([f]) => {
         const inp = $(`[data-ex="${s.key}"][data-f="${f}"]`);
-        if (inp) inp.placeholder = sum.d + sum.y ? String(sum[f]) : '0';   // boşken konu toplamı görünür
+        if (inp) inp.placeholder = sum.d + sum.y + sum.b ? String(sum[f]) : '0';   // boşken konu toplamı görünür
       });
       const el = $(`[data-tpsum="${s.key}"]`);
       if (!el) continue;
-      const { d, y } = subjects[s.key];
-      const over = sum.d > d || sum.y > y;
-      el.textContent = sum.d + sum.y ? `${sum.d} doğru · ${sum.y} yanlış${over ? ' (ders toplamından fazla)' : ''}` : '';
+      const over = FIELDS.some(([f]) => sum[f] > subjects[s.key][f]);
+      el.textContent = sum.d + sum.y + sum.b
+        ? `${FIELDS.map(([f, lbl]) => `${sum[f]} ${lbl}`).join(' · ')}${over ? ' (ders toplamından fazla)' : ''}` : '';
       el.classList.toggle('over', over);
     }
   };
@@ -333,8 +331,8 @@ export function bind(root, ctx) {
       const name = ($('#exName').value || '').trim();
       const date = $('#exDate').value || todayKey();
       const { subjects, topics } = readForm();
-      const any = SUBJECTS.some(s => subjects[s.key].d || subjects[s.key].y);
-      if (!any) { ctx.toast('Önce doğru/yanlış sayılarını gir 🙂'); return; }
+      const any = SUBJECTS.some(s => subjects[s.key].d || subjects[s.key].y || subjects[s.key].b);
+      if (!any) { ctx.toast('Önce doğru/yanlış/boş sayılarını gir 🙂'); return; }
 
       if (drawer.mode === 'edit') {
         const old = store.get().exams.find(x => x.id === drawer.id);

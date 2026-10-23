@@ -14,7 +14,7 @@ const defaults = () => ({
   goalHistory: [],    // [{ from:'YYYY-MM-DD', goal, _t }] — hedefin o tarihten itibaren geçerli hâli
   examDate: '2027-06-06',
   days: {},           // 'YYYY-MM-DD' -> { _t: zaman damgası, turkce:{d,y,b,s,ct}, ... }
-  exams: [],          // { id, name, date, subjects:{ key:{d,y} }, topics:{ key:{ 'konu adı': yanlış } }, _t }
+  exams: [],          // { id, name, date, subjects:{ key:{d,y,b} }, topics:{ key:{ 'konu adı': {d,y,b} } }, _t }
   deletedExams: [],   // silinen denemeler senkronda geri gelmesin
   examTopics: {},     // ders -> ['konu adı', ...] deneme formundaki konu listesi (Denemeler > Konular)
   books: [],          // { id, subject, name, units:[{id,name,done,doneAt}], _t }

@@ -1078,6 +1078,7 @@ ul.wlist{list-style:none;margin:0 0 13px;padding:0;background:var(--card);
 .xdrawer-foot{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:11px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card)}
 .xprev{flex:1;display:flex;gap:14px;font-size:10.5px;color:var(--ink-soft)}
 .xprev b{display:block;font-family:var(--font-d);font-size:19px;line-height:1.1;color:var(--pink-deep)}
+.xsaved{font-size:11px;color:var(--ink-soft);text-align:right}
 
 @media (max-width:760px){
   .xgrid{grid-template-columns:minmax(0,1fr)}

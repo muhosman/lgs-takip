@@ -12,9 +12,14 @@ let justOpened = false;
 // formdaki konu kutularının adları: data-tp="ders:sıra" ile eşleşir (adlarda tırnak olabilir)
 let formTopics = {};
 let drawerScroll = 0;      // konu ayarında yeniden çizimde kaydırma kaybolmasın
-let focusSubject = null;   // konu eklenen dersin kutusu yeniden odaklansın
+let focusSubject = null;
+let saveTimer = null;       // yazarken kaydetme beklemesi
+let savedAny = false;       // drawer açıkken en az bir kayıt yapıldı mı
+let createdNew = false;     // bu drawer'da yeni deneme oluşturuldu mu (kapanışta konfeti)   // konu eklenen dersin kutusu yeniden odaklansın
 
-export const reset = () => { drawer = null; };
+let flushPending = null;    // başka sekmeye geçerken bekleyen kaydı yazar
+
+export const reset = () => { flushPending?.(); drawer = null; savedAny = createdNew = false; };
 /** Başka sayfadan (Bugün > Deneme ekle) drawer'ı açık getirmek için */
 export const requestAdd = () => { drawer = { mode: 'add' }; justOpened = true; };
 
@@ -184,7 +189,8 @@ function drawerHtml() {
     ${!topicsMode ? `
       <div class="xdrawer-foot">
         <div class="xprev"><span><b id="exNet">0</b>net</span><span><b id="exScore">100</b>tahmini puan</span></div>
-        <button type="button" id="exSave" class="btn-primary">${ex ? 'Değişiklikleri kaydet' : 'Denemeyi kaydet 🏆'}</button>
+        <span class="xsaved" id="exSaved">${ex ? 'Yazdıkça kaydedilir' : 'Yazmaya başlayınca kaydedilir'}</span>
+        <button type="button" id="exSave" class="btn-primary">Tamam</button>
       </div>` : ''}
   </aside>`;
 }
@@ -249,8 +255,15 @@ export function bind(root, ctx) {
   const $ = sel => root.querySelector(sel);
   document.body.classList.toggle('drawer-open', !!drawer);
 
-  const open = next => { drawer = next; justOpened = true; ctx.rerender(); };
-  const close = () => { drawer = null; ctx.rerender(); };
+  const open = next => { drawer = next; justOpened = true; savedAny = createdNew = false; ctx.rerender(); };
+  const close = () => {
+    flush();
+    drawer = null;
+    if (createdNew) { confetti(1600); ctx.toast('Deneme kaydedildi! 🏆'); }
+    ctx.rerender();
+    if (savedAny) { ctx.refreshHeader(); ctx.checkBadges(); }
+    savedAny = createdNew = false;
+  };
 
   /** Ders kutusu boşsa toplam konulardan; yazılmışsa yazılan geçerli */
   const readForm = () => {
@@ -292,9 +305,42 @@ export function bind(root, ctx) {
   };
   preview();
 
+  /** Yazdıkça kaydeder: yeni denemede ilk sayıyla oluşturur, sonra aynı kaydı günceller */
+  const persist = () => {
+    clearTimeout(saveTimer); saveTimer = null;
+    if (!drawer || drawer.mode === 'topics' || !$('#exName')) return;
+    const { subjects, topics } = readForm();
+    const name = ($('#exName').value || '').trim();
+    const date = $('#exDate').value || todayKey();
+    if (drawer.mode === 'add') {
+      if (!SUBJECTS.some(s => subjects[s.key].d || subjects[s.key].y || subjects[s.key].b)) return;
+      const id = 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      store.addExam({ id, name: name || `Deneme ${store.get().exams.length + 1}`, date, subjects, topics });
+      drawer = { mode: 'edit', id };   // yeniden çizmeden düzenlemeye geç, odak kaybolmasın
+      createdNew = true;
+    } else {
+      const old = store.get().exams.find(x => x.id === drawer.id);
+      if (!old) return;
+      store.updateExam(drawer.id, { name: name || old.name, date, subjects, topics });
+    }
+    savedAny = true;
+    const el = $('#exSaved');
+    if (el) el.textContent = 'Kaydedildi ✓';
+  };
+  const flush = () => { if (saveTimer) persist(); };
+  flushPending = flush;
+  const schedule = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persist, 500);
+    const el = $('#exSaved');
+    if (el && drawer?.mode !== 'add') el.textContent = 'Kaydediliyor…';
+  };
+
   root.addEventListener('input', e => {
     if (e.target.closest('[data-ex], [data-tp]')) preview();
+    if (e.target.closest('[data-ex], [data-tp], #exName, #exDate')) schedule();
   });
+  root.addEventListener('change', e => { if (e.target.closest('[data-ex], [data-tp], #exName, #exDate')) flush(); });
 
   root.addEventListener('click', e => {
     if (e.target.closest('[data-addexam]')) { open({ mode: 'add' }); return; }
@@ -327,31 +373,7 @@ export function bind(root, ctx) {
       return;
     }
 
-    if (e.target.closest('#exSave')) {
-      const name = ($('#exName').value || '').trim();
-      const date = $('#exDate').value || todayKey();
-      const { subjects, topics } = readForm();
-      const any = SUBJECTS.some(s => subjects[s.key].d || subjects[s.key].y || subjects[s.key].b);
-      if (!any) { ctx.toast('Önce doğru/yanlış/boş sayılarını gir 🙂'); return; }
-
-      if (drawer.mode === 'edit') {
-        const old = store.get().exams.find(x => x.id === drawer.id);
-        store.updateExam(drawer.id, { name: name || old?.name || 'Deneme', date, subjects, topics });
-        ctx.toast('Deneme güncellendi ✅');
-      } else {
-        store.addExam({
-          id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-          name: name || `Deneme ${store.get().exams.length + 1}`,
-          date, subjects, topics,
-        });
-        confetti(1600);
-        ctx.toast('Deneme kaydedildi! 🏆');
-      }
-      drawer = null;
-      ctx.rerender();
-      ctx.refreshHeader();
-      ctx.checkBadges();
-    }
+    if (e.target.closest('#exSave')) close();
   });
 
   // konu ayarında yeniden çizerken kaydırma ve odak korunur

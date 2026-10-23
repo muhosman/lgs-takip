@@ -2,7 +2,7 @@
 // Ekleme/düzenleme sağdan açılan drawer'da, yazdıkça kaydedilir.
 import { SUBJECTS, SUBJ_MAP } from '../data.js';
 import * as store from '../store.js';
-import { netOf, fmtNet, estimateScore, todayKey, dateOf, fmtShort, clampInt, esc } from '../utils.js';
+import { netOf, fmtNet, fmtScore, fmtDiff, estimateScore, todayKey, dateOf, fmtShort, clampInt, esc } from '../utils.js';
 import { line } from '../charts.js';
 import { rec, topicStats, filterBar, focusCard, subjectCard, eksikCard, changeCard, topicTable } from './examAnalysis.js';
 import { confetti } from '../confetti.js';
@@ -77,7 +77,7 @@ function examCard(ex, pos, count) {
     </div>
     <div class="xsum">
       <div class="xsum-main"><b>${fmtNet(total)}</b>net</div>
-      <div class="xsum-main score"><b>${score}</b>puan</div>
+      <div class="xsum-main score"><b>${fmtScore(score)}</b>puan</div>
       <div class="xsum-dyb"><b class="d">${sum.d}</b>doğru</div>
       <div class="xsum-dyb"><b class="y">${sum.y}</b>yanlış</div>
       <div class="xsum-dyb"><b class="b">${sum.b}</b>boş</div>
@@ -189,7 +189,7 @@ function drawerHtml() {
     <div class="drawer-body">${body}</div>
     ${!topicsMode ? `
       <div class="xdrawer-foot">
-        <div class="xprev"><span><b id="exNet">0</b>net</span><span><b id="exScore">100</b>tahmini puan</span></div>
+        <div class="xprev"><span><b id="exNet">0</b>net</span><span><b id="exScore">194.75</b>tahmini puan</span></div>
         <span class="xsaved" id="exSaved">${ex ? 'Yazdıkça kaydedilir' : 'Yazmaya başlayınca kaydedilir'}</span>
         <button type="button" id="exSave" class="btn-primary">Tamam</button>
       </div>` : ''}
@@ -214,9 +214,9 @@ export function render() {
     <div class="xhead">
       <div class="xstats">
         <div class="xstat"><b>${exams.length}</b>deneme</div>
-        <div class="xstat"><b>${best || '–'}</b>en yüksek puan</div>
+        <div class="xstat"><b>${best ? fmtScore(best) : '–'}</b>en yüksek puan</div>
         <div class="xstat"><b>${exams.length ? fmtNet(bestNet) : '–'}</b>en iyi net</div>
-        <div class="xstat"><b class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff === null ? '–' : (diff >= 0 ? '+' : '') + diff}</b>son değişim</div>
+        <div class="xstat"><b class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff === null ? '–' : fmtDiff(diff)}</b>son değişim</div>
       </div>
       <div class="xhead-acts">
         <button type="button" class="btn-ghost" data-topics title="Deneme konuları">⚙️ Konular</button>
@@ -228,7 +228,7 @@ export function render() {
       <div class="xgrid">
         <div class="card xa-card">
           <div class="card-title">📈 Puan gelişimin</div>
-          ${line(trend, { min: 100, max: 500, height: 165 })}
+          ${line(trend, { min: 190, max: 500, height: 165, fmt: fmtScore })}
         </div>
         ${subjectCard(exams, 'all')}
       </div>
@@ -287,7 +287,7 @@ export function bind(root, ctx) {
     const { subjects, auto } = readForm();
     const net = SUBJECTS.reduce((a, s) => a + netOf(subjects[s.key].d, subjects[s.key].y), 0);
     $('#exNet').textContent = fmtNet(net);
-    $('#exScore').textContent = estimateScore(subjects);
+    $('#exScore').textContent = fmtScore(estimateScore(subjects));
     for (const s of SUBJECTS) {
       const sum = auto[s.key];
       FIELDS.forEach(([f]) => {

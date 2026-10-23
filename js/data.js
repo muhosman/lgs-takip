@@ -1,12 +1,12 @@
 // Sabitler: dersler, metrikler, seviyeler, rozetler
 
 export const SUBJECTS = [
-  { key:'turkce',    name:'TÜRKÇE',        emoji:'📚', color:'#F7B7B6', ink:'#8A4A4A', q:20, w:4 },
-  { key:'matematik', name:'MATEMATİK',     emoji:'📐', color:'#A9E4DE', ink:'#26635C', q:20, w:4 },
-  { key:'fen',       name:'FEN BİLİMLERİ', emoji:'🔬', color:'#A8E9C6', ink:'#276848', q:20, w:4 },
-  { key:'inkilap',   name:'T.C. İNKILAP',  emoji:'🏛️', color:'#FBE3A6', ink:'#8A6A17', q:10, w:1 },
-  { key:'ingilizce', name:'İNGİLİZCE',     emoji:'🌍', color:'#C6BAF5', ink:'#4A3A8C', q:10, w:1 },
-  { key:'din',       name:'DİN KÜLTÜRÜ',   emoji:'🕌', color:'#F7B9D2', ink:'#8A3A63', q:10, w:1 },
+  { key:'turkce',    name:'TÜRKÇE',        emoji:'📚', color:'#F7B7B6', ink:'#8A4A4A', q:20, w:4, k:4.348 },
+  { key:'matematik', name:'MATEMATİK',     emoji:'📐', color:'#A9E4DE', ink:'#26635C', q:20, w:4, k:4.2538 },
+  { key:'fen',       name:'FEN BİLİMLERİ', emoji:'🔬', color:'#A8E9C6', ink:'#276848', q:20, w:4, k:4.123 },
+  { key:'inkilap',   name:'T.C. İNKILAP',  emoji:'🏛️', color:'#FBE3A6', ink:'#8A6A17', q:10, w:1, k:1.666 },
+  { key:'ingilizce', name:'İNGİLİZCE',     emoji:'🌍', color:'#C6BAF5', ink:'#4A3A8C', q:10, w:1, k:1.5075 },
+  { key:'din',       name:'DİN KÜLTÜRÜ',   emoji:'🕌', color:'#F7B9D2', ink:'#8A3A63', q:10, w:1, k:1.899 },
 ];
 
 export const SUBJ_MAP = Object.fromEntries(SUBJECTS.map(s => [s.key, s]));

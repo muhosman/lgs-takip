@@ -43,16 +43,19 @@ export const daysBetween = (a, b) =>
 export const netOf = (d, y) => Math.max(0, (d || 0) - (y || 0) / 3);
 export const fmtNet = n => (Math.round(n * 100) / 100).toFixed(2).replace(/\.?0+$/, '') || '0';
 
-/** Ağırlıklı LGS puanı tahmini (100–500) */
+/** LGS puanı tahmini: MEB'in taban puanı + ders netleri × ders katsayısı (tam net = 500).
+ *  Yayınevi puanı katılımcı dağılımına göre standartlaştırıldığı için birkaç puan farklı çıkabilir. */
+const SCORE_BASE = 194.752082;
 export function estimateScore(perSubject) {
-  let weighted = 0, max = 0;
-  for (const s of SUBJECTS) {
+  const raw = SUBJECTS.reduce((a, s) => {
     const r = perSubject[s.key] || { d: 0, y: 0 };
-    weighted += netOf(r.d, r.y) * s.w;
-    max += s.q * s.w;
-  }
-  return Math.round(100 + (weighted / max) * 400);
+    return a + netOf(r.d, r.y) * s.k;
+  }, SCORE_BASE);
+  return Math.round(Math.min(500, raw) * 100) / 100;
 }
+/** Puan yazımı: 368.55 · fark yazımı: +12.4 / -3 */
+export const fmtScore = n => fmtNet(n);
+export const fmtDiff = n => (n > 0 ? '+' : n < 0 ? '-' : '') + fmtNet(Math.abs(n));
 
 export const clampInt = (v, min = 0, max = 9999) => {
   const n = Math.round(Number(v));

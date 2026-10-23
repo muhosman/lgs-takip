@@ -7,7 +7,7 @@ import * as store from '../store.js';
 import { dayTotals, summarize, levelInfo, streakRisk, unlockedGifts } from '../gamify.js';
 import {
   todayKey, fmtNet, netOf, esc, clampInt, keyOf, addDays, fmtShort, daysBetween, dateOf,
-  estimateScore, DAY_SHORT, MONTHS,
+  estimateScore, fmtScore, fmtDiff, DAY_SHORT, MONTHS,
 } from '../utils.js';
 import { miniRing, curves } from '../charts.js';
 import { confetti } from '../confetti.js';
@@ -267,8 +267,8 @@ function examDrawer() {
     <div class="drawer-body">
       <div class="xstats estats">
         <div class="xstat"><b>${fmtNet(net)}</b>net</div>
-        <div class="xstat"><b>${score}</b>tahmini puan</div>
-        <div class="xstat"><b class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff === null ? '–' : (diff >= 0 ? '+' : '') + diff}</b>önceki denemeye göre</div>
+        <div class="xstat"><b>${fmtScore(score)}</b>tahmini puan</div>
+        <div class="xstat"><b class="${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff === null ? '–' : fmtDiff(diff)}</b>önceki denemeye göre</div>
       </div>
       <div class="erows">${SUBJECTS.map(s => {
         const r = ex.subjects[s.key] || { d: 0, y: 0 };
@@ -423,7 +423,7 @@ function studentCard(state, st) {
       <button type="button" class="stile te" ${ex ? 'data-examdetail' : 'disabled'}>
         <span class="stile-ico">🏆</span>
         <span class="stile-main"><span class="stile-val"><b>${ex ? fmtNet(exNet) : '–'}</b>${ex ? ' net' : ''}</span><span class="stile-lbl">${ex ? esc(ex.name) : 'Son deneme'}</span>
-          <span class="stile-sub">${ex ? `${estimateScore(ex.subjects)} puan${exDiff === null ? '' : ` · ${exDiff >= 0 ? '+' : ''}${exDiff}`}` : 'Henüz deneme yok'}</span></span>
+          <span class="stile-sub">${ex ? `${fmtScore(estimateScore(ex.subjects))} puan${exDiff === null ? '' : ` · ${fmtDiff(exDiff)}`}` : 'Henüz deneme yok'}</span></span>
       </button>
       <div id="warnSlot">${streakWarning(state, { compact: true })}</div>
     </div>
